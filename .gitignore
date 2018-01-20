@@ -1,0 +1,8 @@
+safefs
+safefs-debug
+safefs.log
+test-access
+test-store.noindex
+cipher-test
+safefs-test
+*.o
