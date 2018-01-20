@@ -8,7 +8,9 @@ You can use this to encrypt your cloud files by placing the storage folder in a 
 Make sure that you place the access folder outside of any cloud sync folder locations otherwise the plain text versions of the files will also be synchronised with the cloud.
 
 ## Features
+
 The file encryption strategy used has the following features:
+
 	1. A polyalphabetic substitution cipher is used to encipher and decipher file content
 	2. A separate randomly generated cipher table is used for each file so that two files with the same plain text result in different cipher text
 	3. An 8 character pin code is used to derive the cipher key that is used with the cipher table to encipher and decipher the text
@@ -17,6 +19,7 @@ The file encryption strategy used has the following features:
 	6. A different MD5 hash of the pin code is used to encode each cipher table; the cipher table is stored with the file
 
 ## Caveats
+
 	1. Don't use this to protect state secrets. The algorithm has not been verified to determine its strength to resist attacks on the generated cipher text
 	2. The algorithm can encipher about 100MB per second and decipher about 240MB per second on a 2015 MacBook Pro laptop
 
