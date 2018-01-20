@@ -1,7 +1,5 @@
 # safefs 
 MacOS FUSE Filesystem using a simple polyalphabetic substitution cipher for file encryption
-Copyright (C) 2018 David Johnston
-All rights reserved
 
 This is a MacOS FUSE filesystem that uses an 8 digit pin code to encrypt files using a simple polyalphabetic substitution cipher.
 You can use this to encrypt your cloud files by placing the storage folder in a cloud sync folder location.
