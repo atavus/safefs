@@ -574,18 +574,30 @@ int y_readdir(const char *path, void *buf, fuse_fill_dir_t filler, off_t offset,
   logdebug("y_readdir","path=%s",path);
   int rc = 0;
   DIR *dp;
-  struct dirent *dent;
-  dp = (DIR*)(uintptr_t)info->fh;
-  dent = readdir(dp);
-  if (dent == NULL) {
-    rc = logerr("y_readdir","readdir path=%s",path);
+  struct dirent *dent = NULL;
+  //dp = (DIR*)(uintptr_t)info->fh;
+  char fpath[PATH_MAX];
+  resolve(path,fpath);
+  dp = opendir(fpath);
+  if (dp==NULL) {
+    rc = logerr("y_readdir","opendir path=%s",path);
   } else {
-    do {
-      if (filler(buf, dent->d_name, NULL, 0) != 0) {
-        rc = -ENOMEM;
-        break;
-      }
-    } while (( dent = readdir(dp)) != NULL);
+    dent = readdir(dp);
+    if (dent == NULL) {
+      rc = logerr("y_readdir","readdir path=%s",path);
+    } else {
+      do {
+        struct stat st;
+        st.st_ino = dent->d_ino;
+        st.st_mode = dent->d_type << 12;
+        if (filler(buf, dent->d_name, &st, 0) != 0) {
+          logerr("y_readdir","filler path=%s",path);
+          rc = -ENOMEM;
+          break;
+        }
+      } while (( dent = readdir(dp)) != NULL);
+    }
+    closedir(dp);
   }
   loginfo("y_readdir","rc=%d",rc);
   return rc;
