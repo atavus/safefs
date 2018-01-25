@@ -81,9 +81,16 @@ int write_rotor(const char* cmd, const char* path, btnode* node, struct fuse_fil
   return rc;
 }
 
+int is_ds_store(const char* path) {
+  return (path!=NULL & strlen(path)>=10 && !strcmp("/.DS_Store",&path[strlen(path)-10]));
+}
+
 void resolve(const char* path, char fpath[PATH_MAX]) {
   strcpy(fpath,Y_STATE->rootdir);
   strncat(fpath,path,PATH_MAX-strlen(Y_STATE->rootdir));
+  if (is_ds_store(path)) {
+    strcat(fpath,".");
+  }
 }
 
 void determine_rotor_offsets(struct y_state *y_state, char *pwd) {
@@ -590,10 +597,18 @@ int y_readdir(const char *path, void *buf, fuse_fill_dir_t filler, off_t offset,
         struct stat st;
         st.st_ino = dent->d_ino;
         st.st_mode = dent->d_type << 12;
-        if (filler(buf, dent->d_name, &st, 0) != 0) {
-          logerr("y_readdir","filler path=%s",path);
-          rc = -ENOMEM;
-          break;
+        if (!strcmp(dent->d_name,".DS_Store.")) {
+          if (filler(buf, ".DS_Store", &st, 0) != 0) {
+            logerr("y_readdir","filler path=%s",path);
+            rc = -ENOMEM;
+            break;
+          }
+        } else {
+          if (filler(buf, dent->d_name, &st, 0) != 0) {
+            logerr("y_readdir","filler path=%s",path);
+            rc = -ENOMEM;
+            break;
+          }
         }
       } while (( dent = readdir(dp)) != NULL);
     }
