@@ -4,62 +4,72 @@
 #include <string.h>
 #include <limits.h>
 #include <time.h>
+#include <pthread.h>
 #include "logging.h"
 #include "state.h"
 
 int debug_on = 0;
 int info_on = 0;
 
+pthread_mutex_t mutexlog = PTHREAD_MUTEX_INITIALIZER;
+
 void logdebug(const char* fusecmd, const char* fmt, ...) {
   if (debug_on) {
+    pthread_mutex_lock(&mutexlog);
     va_list va;
     va_start(va,fmt);
     time_t current_time = time(NULL);
     struct tm *tm = localtime(&current_time);
     char buf[30];
     asctime_r(tm,buf);
-    fprintf(Y_STATE->logfile,"%s",buf);
-    fprintf(Y_STATE->logfile,": %s : ",fusecmd);
+    buf[strlen(buf)-1]=0;
+    fprintf(Y_STATE->logfile,"%s : %-14s : ",buf,fusecmd);
     vfprintf(Y_STATE->logfile,fmt,va);
     fprintf(Y_STATE->logfile,"\n");
     fflush(Y_STATE->logfile);
+    pthread_mutex_unlock(&mutexlog);
   }
 }
 
 void loginfo(const char* fusecmd, const char* fmt, ...) {
   if (info_on) {
+    pthread_mutex_lock(&mutexlog);
     va_list va;
     va_start(va,fmt);
     time_t current_time = time(NULL);
     struct tm *tm = localtime(&current_time);
     char buf[30];
     asctime_r(tm,buf);
-    fprintf(Y_STATE->logfile,"%s",buf);
-    fprintf(Y_STATE->logfile,": %s : ",fusecmd);
+    buf[strlen(buf)-1]=0;
+    fprintf(Y_STATE->logfile,"%s : %-14s : ",buf,fusecmd);
     vfprintf(Y_STATE->logfile,fmt,va);
     fprintf(Y_STATE->logfile,"\n");
     fflush(Y_STATE->logfile);
+    pthread_mutex_unlock(&mutexlog);
   }
 }
 
 void logdata(const char* fusecmd, const char* type, uint64_t ofs, const unsigned char* data, size_t size) {
   if (debug_on && data!=NULL) {
+    pthread_mutex_lock(&mutexlog);
     time_t current_time = time(NULL);
     struct tm *tm = localtime(&current_time);
     char buf[30];
     asctime_r(tm,buf);
-    fprintf(Y_STATE->logfile,"%s",buf);
-    fprintf(Y_STATE->logfile,": %s : %s : size=%zu",fusecmd,type,size);
+    buf[strlen(buf)-1]=0;
+    fprintf(Y_STATE->logfile,"%s : %-14s : %s : size=%zu",buf,fusecmd,type,size);
     for(uint64_t ptr=0; ptr<size; ptr++) {
       if ((ptr%16)==0) fprintf(Y_STATE->logfile,"\n%08llx",(ofs+ptr));
       fprintf(Y_STATE->logfile," %02x",data[ptr]);
     }
     fprintf(Y_STATE->logfile,"\n");
     fflush(Y_STATE->logfile);
+    pthread_mutex_unlock(&mutexlog);
   }
 }
 
 int logerr(const char* fusecmd, const char* fmt, ...) {
+  pthread_mutex_lock(&mutexlog);
   int rc = -errno;
   va_list va;
   va_start(va,fmt);
@@ -67,11 +77,12 @@ int logerr(const char* fusecmd, const char* fmt, ...) {
   struct tm *tm = localtime(&current_time);
   char buf[30];
   asctime_r(tm,buf);
-  fprintf(Y_STATE->logfile,"%s",buf);
-  fprintf(Y_STATE->logfile,": %s : Error [%d] %s\n\t",fusecmd,rc,strerror(errno));
+  buf[strlen(buf)-1]=0;
+  fprintf(Y_STATE->logfile,"%s : %-14s : Error [%d] %s\n\t",buf,fusecmd,rc,strerror(errno));
   vfprintf(Y_STATE->logfile,fmt,va);
   fprintf(Y_STATE->logfile,"\n");
   fflush(Y_STATE->logfile);
+  pthread_mutex_unlock(&mutexlog);
   return rc;
 }
 
