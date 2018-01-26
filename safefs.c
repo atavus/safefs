@@ -209,20 +209,26 @@ int y_getattr(const char *path, struct stat *stat) {
   resolve(path,fpath);
   rc = lstat(fpath,stat);
   if (rc<0) { if (errno!=ENOENT) rc = logerr("y_getattr","stat path=%s",path); else rc = -errno; }
-  else { if (stat->st_size>=256) stat->st_size -= 256; /* hide the first 256 bytes */ }
-  loginfo("y_getattr","rc=%d",rc);
+  else { 
+    if (stat->st_size>=256) stat->st_size -= 256; /* hide the first 256 bytes */ 
+    logdebug("y_getattr","st_size=%lu",stat->st_size);
+  }
+  loginfo("y_getattr","path=%s rc=%d",path,rc);
   return rc; 
 }
 
 int y_readlink(const char *path, char *link, size_t size) { 
-  logdebug("y_readlink","path=%s link=%s size=%d",path,link,size);
+  logdebug("y_readlink","path=%s size=%d",path,size);
   int rc = 0;
   char fpath[PATH_MAX];
   resolve(path,fpath);
   rc = readlink(fpath,link,size-1);
   if (rc<0) rc = logerr("y_readlink","readlink path=%s",path);
-  else { link[rc] = 0; rc = 0; }
-  loginfo("y_readlink","rc=%d",rc);
+  else { 
+    link[rc] = 0; rc = 0; 
+    logdebug("y_readlink","link=%s",link);
+  }
+  loginfo("y_readlink","path=%s size=%d rc=%d",path,size,rc);
   return rc; 
 }
 
@@ -235,7 +241,7 @@ int y_mknod(const char *path, mode_t mode, dev_t dev) {
   resolve(path,fpath);
   rc = mknod(fpath,mode,dev);
   if (rc<0) rc = logerr("y_mknod","mknod path=%s",path);
-  loginfo("y_mknod","rc=%d",rc);
+  loginfo("y_mknod","path=%s mode=%d rc=%d",path,mode,rc);
   return rc; 
 }
 
@@ -246,7 +252,7 @@ int y_mkdir(const char *path, mode_t mode) {
   resolve(path,fpath);
   rc = mkdir(fpath,mode);
   if (rc<0) rc = logerr("y_mkdir","mkdir path=%s",path);
-  loginfo("y_mkdir","rc=%d",rc);
+  loginfo("y_mkdir","path=%s mode=%d rc=%d",path,mode,rc);
   return rc; 
 }
 
@@ -257,7 +263,7 @@ int y_unlink(const char *path) {
   resolve(path,fpath);
   rc = unlink(fpath);
   if (rc<0) rc = logerr("y_unlink","unlink path=%s",path);
-  loginfo("y_unlink","rc=%d",rc);
+  loginfo("y_unlink","path=%s rc=%d",path,rc);
   return rc; 
 }
 
@@ -268,7 +274,7 @@ int y_rmdir(const char *path) {
   resolve(path,fpath);
   rc = rmdir(fpath);
   if (rc<0) rc = logerr("y_rmdir","rmdir path=%s",path);
-  loginfo("y_rmdir","rc=%d",rc);
+  loginfo("y_rmdir","path=%s rc=%d",path,rc);
   return rc; 
 }
 
@@ -279,7 +285,7 @@ int y_symlink(const char *target, const char *path) {
   resolve(path,fpath);
   rc = symlink(target,fpath);
   if (rc<0) rc = logerr("y_symlink","symlink target=%s path=%s",target,path);
-  loginfo("y_symlink","rc=%d",rc);
+  loginfo("y_symlink","target=%s path=%s rc=%d",target,path,rc);
   return rc; 
 }
 
@@ -292,7 +298,7 @@ int y_rename(const char *path, const char *path2) {
   resolve(path2,fpath2);
   rc = rename(fpath,fpath2);
   if (rc<0) rc = logerr("y_rename","rename path=%s path2=%s",path,path2);
-  loginfo("y_rename","rc=%d",rc);
+  loginfo("y_rename","path=%s path2=%s rc=%d",path,path2,rc);
   return rc; 
 }
 
@@ -305,18 +311,18 @@ int y_link(const char *path, const char *path2) {
   resolve(path2,fpath2);
   rc = link(fpath,fpath2);
   if (rc<0) rc = logerr("y_link","link path=%s path2=%s",path,path2);
-  loginfo("y_link","rc=%d",rc);
+  loginfo("y_link","path=%s path2=%s rc=%d",path,path2,rc);
   return rc; 
 }
 
 int y_chmod(const char *path, mode_t mode) {
-  logdebug("y_chmod","path=%s mode=%d",path,mode);
+  logdebug("y_chmod","path=%s mode=%x",path,mode);
   int rc = 0;
   char fpath[PATH_MAX];
   resolve(path,fpath);
   rc = chmod(fpath,mode);
   if (rc<0) rc = logerr("y_chmod","chmod path=%s mode=%d",path,mode);
-  loginfo("y_chmod","rc=%d",rc);
+  loginfo("y_chmod","path=%s mode=%x rc=%d",path,mode,rc);
   return rc; 
 }
 
@@ -327,7 +333,7 @@ int y_chown(const char *path, uid_t uid, gid_t gid) {
   resolve(path,fpath);
   rc = chown(fpath,uid,gid);
   if (rc<0) rc = logerr("y_chown","chown path=%s uid=%d gid=%d",path,uid,gid);
-  loginfo("y_chown","rc=%d",rc);
+  loginfo("y_chown","path=%s uid=%d gid=%d rc=%d",path,uid,gid,rc);
   return rc; 
 }
 
@@ -339,18 +345,18 @@ int y_truncate(const char *path, off_t off) {
   // truncate the file skipping the first 256 bytes
   rc = truncate(fpath,off+256);
   if (rc<0) rc = logerr("y_truncate","truncate path=%s offset=%d",path,off);
-  loginfo("y_truncate","rc=%d",rc);
+  loginfo("y_truncate","path=%s offset=%d rc=%d",path,off,rc);
   return rc; 
 }
 
 int y_utime(const char *path, struct utimbuf *time) {
-  logdebug("y_utime","path=%s",path);
+  logdebug("y_utime","path=%s actime=%lu modtime=%lu",path,time->actime,time->modtime);
   int rc = 0;
   char fpath[PATH_MAX];
   resolve(path,fpath);
   rc = utime(fpath,time);
   if (rc<0) rc = logerr("y_utime","utime path=%s",path);
-  loginfo("y_utime","rc=%d",rc);
+  loginfo("y_utime","path=%s actime=%lu modtime=%lu rc=%d",path,time->actime,time->modtime,rc);
   return rc; 
 }
 
@@ -394,7 +400,7 @@ int y_open(const char *path, struct fuse_file_info *info) {
     if (fd<0) {
       rc = logerr("y_open","open path=%s",path);
     } else { 
-      loginfo("y_open","fd=%d path=%s",fd,path);
+      logdebug("y_open","fd=%d path=%s",fd,path);
       info->fh = fd; 
       btnode* node = addLink(fd,&Y_STATE->list); 
       if (!loaded) {
@@ -418,7 +424,7 @@ int y_open(const char *path, struct fuse_file_info *info) {
   }
   memset(f_ring,0,256);
   memset(r_ring,0,256);
-  loginfo("y_open","rc=%d",rc);
+  loginfo("y_open","path=%s flags=%d rc=%d",path,info->flags,rc);
   return rc; 
 }
 
@@ -443,7 +449,7 @@ int y_read(const char *path, char *data, size_t size, off_t ofs, struct fuse_fil
     decipher(node->r_ring,Y_STATE->offsets,ofs,(unsigned char*)data,0,rc);
     logdata("y_read","plain text",ofs,(unsigned char*)data,rc);
   }
-  loginfo("y_read","rc=%d",rc);
+  loginfo("y_read","path=%s size=%d ofs=%d rc=%d",path,size,ofs,rc);
   return rc; 
 }
 
@@ -471,7 +477,7 @@ int y_write(const char *path, const char *data, size_t size, off_t ofs, struct f
   if (rc<0) {
     rc = logerr("y_write","pwrite path=%s",path);
   } else {
-    loginfo("y_write","fh=%d offset=%d size=%d path=%s",info->fh,ofs+256,size,path);
+    logdebug("y_write","fh=%d offset=%d size=%d path=%s",info->fh,ofs+256,size,path);
     decipher(node->f_ring,Y_STATE->offsets,ofs,buf,0,size);
     cmp = memcmp(buf,data,size);
   }
@@ -482,7 +488,7 @@ int y_write(const char *path, const char *data, size_t size, off_t ofs, struct f
       rc = -EINVAL;
     }
   }
-  loginfo("y_write","rc=%d",rc);
+  loginfo("y_write","path=%s offset=%d size=%d rc=%d",path,ofs,size,rc);
   return rc; 
 }
 
@@ -493,7 +499,7 @@ int y_statfs(const char *path, struct statvfs *stat) {
   resolve(path,fpath);
   rc = statvfs(fpath,stat);
   if (rc<0) rc = logerr("y_statfs","statvfs path=%s",path);
-  loginfo("y_statfs","rc=%d",rc);
+  loginfo("y_statfs","path=%s rc=%d",path,rc);
   return rc; 
 }
 
@@ -504,10 +510,10 @@ int y_release(const char *path, struct fuse_file_info *info) {
   int rc = 0;
   rc = close(info->fh);
   if (rc<0) rc = logerr("y_release","close path=%s",path);
-  loginfo("y_release","%d %s",info->fh,path);
+  logdebug("y_release","%d %s",info->fh,path);
   delLink(info->fh,&Y_STATE->list);
   info->fh = 0;
-  loginfo("y_release","rc=%d",rc);
+  loginfo("y_release","path=%s rc=%d",path,rc);
   return rc; 
 }
 
@@ -516,7 +522,7 @@ int y_fsync(const char *path, int datasync, struct fuse_file_info *info) {
   int rc = 0;
   rc = fsync(info->fh);
   if (rc<0) rc = logerr("y_fsync","fsync path=%s",path);
-  loginfo("y_fsync","rc=%d",rc);
+  loginfo("y_fsync","path=%s datasync=%d rc=%d",path,datasync,rc);
   return rc; 
 }
 
@@ -530,7 +536,7 @@ int y_setxattr(const char *path, const char *name, const char *val, size_t size,
   if (strcmp("com.apple.ResourceFork",name)) pos=0; // only ResourceFork uses this field, all others must be zero
   rc = setxattr(fpath,name,val,size,pos,opts);
   if (rc<0) rc = logerr("y_setxattr","setxattr path=%s name=%s",path,name);
-  loginfo("y_setxattr","rc=%d",rc);
+  loginfo("y_setxattr","path=%s name=%s size=%d pos=%d opts=%d rc=%d",path,name,size,pos,opts,rc);
   return rc; 
 }
 
@@ -542,18 +548,26 @@ int y_getxattr(const char *path, const char *name, char *val, size_t size, uint3
   rc = getxattr(fpath,name,val,size,0,opts);
   if (rc<0) { if (errno!=ENOATTR) rc = logerr("y_getxattr","getxattr path=%s name=%s",path,name); else rc = -errno; }
   else { logdata("y_getxattr","value",0,(unsigned char*)val,rc); }
-  loginfo("y_getxattr","rc=%d",rc);
+  loginfo("y_getxattr","path=%s name=%s size=%d opts=%d rc=%d",path,name,size,opts,rc);
   return rc; 
 }
 
 int y_listxattr(const char *path, char *name, size_t size) { 
-  logdebug("y_listxattr","path=%s name=%s size=%d",path,name,size);
+  logdebug("y_listxattr","path=%s size=%d",path,size);
   int rc = 0;
   char fpath[PATH_MAX];
   resolve(path,fpath);
   rc = listxattr(fpath,name,size,0);
   if (rc<0) rc = logerr("y_listxattr","listxattr path=%s name=%s",path,name);
-  loginfo("y_listxattr","rc=%d",rc);
+  else {
+    logdebug("y_listxattr","length=%d",rc);
+    char *ptr = name;
+    for(int i=0; i<rc; i++) {
+      logdebug("y_listxattr","%d : %ls",(i+1),ptr);
+      ptr += strlen(ptr)+1;
+    }
+  }
+  loginfo("y_listxattr","path=%s size=%d rc=%d",path,size,rc);
   return rc; 
 }
 
@@ -564,7 +578,7 @@ int y_removexattr(const char *path, const char *name) {
   resolve(path,fpath);
   rc = removexattr(fpath,name,0);
   if (rc<0) rc = logerr("y_removexattr","removexattr path=%s name=%s",path,name);
-  loginfo("y_removexattr","rc=%d",rc);
+  loginfo("y_removexattr","path=%s name=%s rc=%d",path,name,rc);
   return rc; 
 }
 
@@ -577,7 +591,7 @@ int y_opendir(const char *path, struct fuse_file_info *info) {
   dp = opendir(fpath);
   info->fh = (intptr_t)dp;
   if (dp==NULL) rc = logerr("y_opendir","opendir path=%s",path);
-  loginfo("y_opendir","rc=%d",rc);
+  loginfo("y_opendir","path=%s rc=%d",path,rc);
   return rc; 
 }
 
@@ -618,7 +632,7 @@ int y_readdir(const char *path, void *buf, fuse_fill_dir_t filler, off_t offset,
     }
     closedir(dp);
   }
-  loginfo("y_readdir","rc=%d",rc);
+  loginfo("y_readdir","path=%s rc=%d",path,rc);
   return rc;
 }
 
@@ -630,7 +644,7 @@ int y_releasedir(const char *path, struct fuse_file_info *info) {
   rc = closedir(dp);
   if (rc<0) rc = logerr("y_releasedir","releasedir path=%s",path);
   else info->fh = 0;
-  loginfo("y_releasedir","rc=%d",rc);
+  loginfo("y_releasedir","path=%s rc=%d",path,rc);
   return rc; 
 }
 
@@ -643,13 +657,13 @@ void *y_init(struct fuse_conn_info *conn) {
 void y_destroy(void *conn) { }
 
 int y_access(const char *path, int mask) { 
-  //logdebug("y_access","path=%s mask=%d",path,mask);
+  logdebug("y_access","path=%s mask=%d",path,mask);
   int rc = 0;
   char fpath[PATH_MAX];
   resolve(path,fpath);
   rc = access(fpath,mask);
   if (rc<0) { if (errno!=EACCES) rc = logerr("y_access","access path=%s mask=%d",path,mask); else rc = -errno; }
-  //loginfo("y_access","rc=%d",rc);
+  logdebug("y_access","path=%s mask=%d rc=%d",path,mask,rc);
   return rc; 
 }
 
@@ -663,12 +677,12 @@ int y_create(const char *path, mode_t mode, struct fuse_file_info *info) {
   if (fd<0) {
     rc = logerr("y_create","creat path=%s mode=%d",path,mode);
   } else { 
-    loginfo("y_create","fd=%d path=%s",fd,path);
+    logdebug("y_create","fd=%d path=%s",fd,path);
     info->fh = fd; 
     btnode* node = addLink(fd,&Y_STATE->list); 
     rc = write_rotor("y_create",path,node,info);
   }
-  loginfo("y_create","rc=%d",rc);
+  loginfo("y_create","path=%s mode=%d rc=%d",path,mode,rc);
   return rc; 
 }
 
@@ -678,7 +692,7 @@ int y_ftruncate(const char *path, off_t pos, struct fuse_file_info *info) {
   // truncate the file skipping the first 256 bytes
   rc = ftruncate(info->fh, pos+256);
   if (rc<0) rc = logerr("y_ftruncate","ftruncate path=%s pos=%d",path,pos);
-  loginfo("y_ftruncate","rc=%d",rc);
+  loginfo("y_ftruncate","path=%s pos=%d rc=%d",path,pos,rc);
   return rc; 
 }
 
@@ -688,7 +702,7 @@ int y_fgetattr(const char *path, struct stat *stat, struct fuse_file_info *info)
   rc = fstat(info->fh,stat);
   if (rc<0) rc = logerr("y_fgetattr","fstat path=%s",path);
   else { if (stat->st_size>=256) stat->st_size -= 256; /* hide the first 256 bytes */ }
-  loginfo("y_fgetattr","rc=%d",rc);
+  loginfo("y_fgetattr","path=%s size=%lu rc=%d",path,stat->st_size,rc);
   return rc; 
 }
 
@@ -697,7 +711,7 @@ int y_lock(const char *path, struct fuse_file_info *info, int cmd, struct flock 
   int rc = 0;
   rc = fcntl(info->fh,cmd,flock);
   if (rc<0) rc = logerr("y_lock","fcntl path=%s",path);
-  loginfo("y_lock","rc=%d",rc);
+  loginfo("y_lock","path=%s cmd=%d rc=%d",path,cmd,rc);
   return rc; 
 }
 
@@ -721,7 +735,7 @@ int y_chflags(const char *path, uint32_t flags) {
   resolve(path,fpath);
   rc = chflags(fpath,flags);
   if (rc<0) rc = logerr("y_chflags","chflags path=%s flags=%d",path,flags);
-  loginfo("y_chflags","rc=%d",rc);
+  loginfo("y_chflags","path=%s flags=%d rc=%d",path,flags,rc);
   return rc;
 }
 
@@ -790,8 +804,8 @@ int main(int argc, char** argv) {
     if (strlen(argv[i])>2 && !(memcmp("-s",argv[i],2))) strcpy(storage,&argv[i][2]);
     if (strlen(argv[i])>2 && !(memcmp("-m",argv[i],2))) strcpy(mount,&argv[i][2]);
     if (strlen(argv[i])>2 && !(memcmp("-l",argv[i],2))) strcpy(logfile,&argv[i][2]);
-    if (!strcmp("-debug",argv[i])) debug_on = 1;
-    if (!strcmp("-info",argv[i])) info_on = 1;
+    if (!strcmp("-debug",argv[i])) { debug_on = 1; info_on = 1; }
+    if (!strcmp("-info",argv[i])) { info_on = 1; }
   }
   if (strlen(storage)==0 || strlen(mount)==0) {
     fprintf(stderr,"Syntax: safefs [-debug] [-info] [-o<options>] [-l<log-file-path>] -s<file-system-storage-path> -m<mount-point>\n");
