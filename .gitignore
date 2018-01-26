@@ -1,6 +1,7 @@
 safefs
 safefs-debug
 safefs.log
+debug.log
 test-access
 test-store.noindex
 cipher-test

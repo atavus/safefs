@@ -63,9 +63,9 @@ int write_rotor(const char* cmd, const char* path, btnode* node, struct fuse_fil
   generate_random_rotor(node->f_ring,node->r_ring);
   unsigned char out[256];
   memcpy(out,node->f_ring,256);
-  logdata(cmd,out,256);
+  logdata(cmd,"rotor plain text",0,out,256);
   encode_rotor(out,Y_STATE->rotor_digest);
-  logdata(cmd,out,256);
+  logdata(cmd,"rotor cipher text",0,out,256);
   rc = pwrite(info->fh,out,256,0);
   memset(out,0,256);
   if (rc<0) {
@@ -372,9 +372,9 @@ int y_open(const char *path, struct fuse_file_info *info) {
     if (rc!=256) {
       rc = logerr("y_open","pread path=%s",path);
     } else {
-      logdata("y_open",f_ring,256);
+      logdata("y_open","rotor cipher text",0,f_ring,256);
       decode_rotor(f_ring,Y_STATE->rotor_digest);
-      logdata("y_open",f_ring,256);
+      logdata("y_open","rotor plain text",0,f_ring,256);
       derive_reverse_rotor(f_ring,r_ring);
       loaded = 1;
       rc = 0;
@@ -439,7 +439,9 @@ int y_read(const char *path, char *data, size_t size, off_t ofs, struct fuse_fil
   if (rc<0) { 
     rc = logerr("y_read","pread path=%s",path);
   } else { 
+    logdata("y_read","cipher text",ofs,(unsigned char*)data,rc);
     decipher(node->r_ring,Y_STATE->offsets,ofs,(unsigned char*)data,0,rc);
+    logdata("y_read","plain text",ofs,(unsigned char*)data,rc);
   }
   loginfo("y_read","rc=%d",rc);
   return rc; 
@@ -462,7 +464,9 @@ int y_write(const char *path, const char *data, size_t size, off_t ofs, struct f
   int cmp = 0;
   unsigned char *buf = malloc(size);
   memcpy(buf,data,size);
+  logdata("y_write","plain text",ofs,buf,size);
   encipher(node->f_ring,Y_STATE->offsets,ofs,buf,0,size);
+  logdata("y_write","cipher text",ofs,buf,size);
   rc = pwrite(info->fh,buf,size,ofs+256);
   if (rc<0) {
     rc = logerr("y_write","pwrite path=%s",path);
@@ -518,7 +522,7 @@ int y_fsync(const char *path, int datasync, struct fuse_file_info *info) {
 
 int y_setxattr(const char *path, const char *name, const char *val, size_t size, int pos, uint32_t opts) {
   logdebug("y_setxattr","path=%s name=%s size=%d pos=%d opts=%d",path,name,size,pos,opts);
-  logdata("y_setxattr",(unsigned char*)val,size);
+  logdata("y_setxattr","value",0,(unsigned char*)val,size);
   if (!strcmp("com.apple.quarantine",name)) return 0;
   int rc = 0;
   char fpath[PATH_MAX];
@@ -537,7 +541,7 @@ int y_getxattr(const char *path, const char *name, char *val, size_t size, uint3
   resolve(path,fpath);
   rc = getxattr(fpath,name,val,size,0,opts);
   if (rc<0) { if (errno!=ENOATTR) rc = logerr("y_getxattr","getxattr path=%s name=%s",path,name); else rc = -errno; }
-  else { logdata("y_getxattr",(unsigned char*)val,rc); }
+  else { logdata("y_getxattr","value",0,(unsigned char*)val,rc); }
   loginfo("y_getxattr","rc=%d",rc);
   return rc; 
 }
@@ -772,9 +776,46 @@ int main(int argc, char** argv) {
     exit(1);
   }
 
-  if (argc<3) {
-    fprintf(stderr,"Syntax: safefs <file-system-storage-path> <mount-point>\n");
+  // interpret the command line options
+  char  options[1024];
+  char  storage[1024];
+  char  mount[1024];
+  char  logfile[1024];
+  memset(options,0,sizeof(options));
+  memset(storage,0,sizeof(storage));
+  memset(mount,0,sizeof(mount));
+  memset(logfile,0,sizeof(logfile));
+  for(int i=1; i<argc; i++) {
+    if (strlen(argv[i])>2 && !(memcmp("-o",argv[i],2))) strcpy(options,argv[i]);
+    if (strlen(argv[i])>2 && !(memcmp("-s",argv[i],2))) strcpy(storage,&argv[i][2]);
+    if (strlen(argv[i])>2 && !(memcmp("-m",argv[i],2))) strcpy(mount,&argv[i][2]);
+    if (strlen(argv[i])>2 && !(memcmp("-l",argv[i],2))) strcpy(logfile,&argv[i][2]);
+    if (!strcmp("-debug",argv[i])) debug_on = 1;
+    if (!strcmp("-info",argv[i])) info_on = 1;
+  }
+  if (strlen(storage)==0 || strlen(mount)==0) {
+    fprintf(stderr,"Syntax: safefs [-debug] [-info] [-o<options>] [-l<log-file-path>] -s<file-system-storage-path> -m<mount-point>\n");
     exit(1);
+  }
+  if (strlen(options)==0) {
+    strcpy(options,"-ovolname=safe");
+  } else if (strstr(options,"volname=")==NULL) {
+    strcat(options,",volname=safe");
+  }
+  if (strstr(options,"direct_io")==NULL) {
+    strcat(options,",direct_io");
+  }
+  if (strstr(options,"hard_remove")==NULL) {
+    strcat(options,",hard_remove");
+  }
+  if (strstr(options,"use_ino")==NULL) {
+    strcat(options,",use_ino");
+  }
+  if (strstr(options,"exec")==NULL) {
+    strcat(options,",exec");
+  }
+  if (strlen(logfile)==0) {
+    strcpy(logfile,"safefs.log");
   }
 
   // seed the random number generator
@@ -788,17 +829,14 @@ int main(int argc, char** argv) {
   }
 
   // create the fuse log file
-  y_state->logfile = fopen("safefs.log","w");
+  y_state->logfile = fopen(logfile,"w");
   if (y_state->logfile==NULL) {
-    fprintf(stderr,"Cannot open log file\n");
+    fprintf(stderr,"Cannot open log file [%s] for writing\n",logfile);
     exit(1);
   }
 
-  // extract the store location from the command line
-  strcpy(y_state->rootdir,realpath(argv[argc-2],NULL));
-  argv[argc-2] = argv[argc-1];
-  argv[argc-1] = NULL;
-  argc--;
+  // set the storage location as the root directory
+  strcpy(y_state->rootdir,realpath(storage,NULL));
 
   // determine which rotor offsets to use
   {
@@ -841,8 +879,12 @@ int main(int argc, char** argv) {
   }
 
   // execute fuse
-  fprintf(stderr,"Mounting filesystem\n");
-  return fuse_main(argc, argv, &y_ops, y_state);
+  fprintf(stderr,"Mounting filesystem [%s] using storage [%s] and options [%s]\n",mount,storage,options);
+  char *args[3];
+  args[0] = argv[0];
+  args[1] = options;
+  args[2] = mount;
+  return fuse_main(3, args, &y_ops, y_state);
 
 }
 

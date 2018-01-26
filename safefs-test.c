@@ -131,6 +131,61 @@ int check_file_unlink(const char* store, const char* access) {
   return 0;
 }
 
+int check_random_write_test(const char* store, const char* access) {
+  fprintf(stderr,"Check random writes work\n");
+  char fpath[PATH_MAX];
+  unsigned char out[512];
+  unsigned char in[512];
+
+  strcpy(fpath,access);
+  strcat(fpath,"x");
+  unlink(fpath);
+
+  for(uint64_t ofs=0; ofs<1000000; ofs+=128) {
+    for(int i=0; i<512; i++) {
+      out[i] = random();
+    }
+    int mode=0600;
+    int fd = open(fpath, O_CREAT | O_WRONLY, mode);
+    if (fd<0) {
+      perror("Failed to open file for writing");
+      return 1;
+    } else {
+      int rc = pwrite(fd,out,512,ofs);
+      if (rc<0) {
+        perror("Failed to write to file");
+        close(fd);
+        return 1;
+      }
+      close(fd);
+    }
+    fd = open(fpath, O_RDONLY, mode);
+    if (fd<0) {
+      perror("Failed to open file for reading");
+      return 1;
+    } else {
+      int rc = pread(fd,in,512,ofs);
+      if (rc<0) {
+        perror("Failed to read from file");
+        close(fd);
+        return 1;
+      } else if (rc!=512) {
+        perror("Short read from file");
+        close(fd);
+        return 1;
+      } else {
+        if (memcmp(out,in,512)) {
+          perror("Failed to read the correct data from the file");
+          close(fd);
+          return 1;
+        }
+        close(fd);
+      }
+    }
+  }
+  return 0;
+}
+
 int check_rainbow_test(const char* store, const char* access) {
   fprintf(stderr,"Check that rainbow table protection works\n");
   char fpath[PATH_MAX];
@@ -278,6 +333,7 @@ int main(int argc, char** argv) {
   rc |= check_file_truncate(store,access);
   rc |= check_file_unlink(store,access);
   rc |= check_rainbow_test(store,access);
+  rc |= check_random_write_test(store,access);
   return rc;
 }
 
