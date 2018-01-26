@@ -817,6 +817,12 @@ int main(int argc, char** argv) {
   if (strlen(logfile)==0) {
     strcpy(logfile,"safefs.log");
   }
+  if (storage[strlen(storage)-1]!='/') {
+    strcat(storage,"/");
+  }
+  if (mount[strlen(mount)-1]!='/') {
+    strcat(mount,"/");
+  }
 
   // seed the random number generator
   srandomdev();

@@ -38,7 +38,7 @@ test-safefs: safefs safefs-test
 	@mkdir -p test-access
 	@ulimit -c 0
 	@echo Mount test-store.noindex as test-access
-	@SAFEFS_PIN=00000000 ./safefs -debug -info -ldebug.log -ovolname=safefs-test -stest-store.noindex/ -mtest-access/ &
+	@SAFEFS_PIN=00000000 ./safefs -debug -info -ldebug.log -ovolname=safefs-test -stest-store.noindex -mtest-access &
 	@sleep 2
 	@echo Check that mounted filesystem is working as expected
 	@-./safefs-test test-store.noindex/ test-access/
@@ -60,7 +60,7 @@ mount: safefs
 	@mkdir -p test-store.noindex
 	@mkdir -p test-access
 	@ulimit -c 0
-	@./safefs -ovolname=safefs-test test-store.noindex/ test-access/
+	@./safefs -ovolname=safefs-test -stest-store.noindex -mtest-access
 
 unmount:
 	@echo Unmount test-access
