@@ -559,14 +559,6 @@ int y_listxattr(const char *path, char *name, size_t size) {
   resolve(path,fpath);
   rc = listxattr(fpath,name,size,0);
   if (rc<0) rc = logerr("y_listxattr","listxattr path=%s name=%s",path,name);
-  else {
-    logdebug("y_listxattr","length=%d",rc);
-    char *ptr = name;
-    for(int i=0; i<rc; i++) {
-      logdebug("y_listxattr","%d : %ls",(i+1),ptr);
-      ptr += strlen(ptr)+1;
-    }
-  }
   loginfo("y_listxattr","path=%s size=%d rc=%d",path,size,rc);
   return rc; 
 }
