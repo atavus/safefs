@@ -806,9 +806,10 @@ int main(int argc, char** argv) {
     if (strlen(argv[i])>2 && !(memcmp("-l",argv[i],2))) strcpy(logfile,&argv[i][2]);
     if (!strcmp("-debug",argv[i])) { debug_on = 1; info_on = 1; }
     if (!strcmp("-info",argv[i])) { info_on = 1; }
+    if (!strcmp("-dump-ascii",argv[i])) { data_ascii = 1; }
   }
   if (strlen(storage)==0 || strlen(mount)==0) {
-    fprintf(stderr,"Syntax: safefs [-debug] [-info] [-o<options>] [-l<log-file-path>] -s<file-system-storage-path> -m<mount-point>\n");
+    fprintf(stderr,"Syntax: safefs [-debug] [-info] [-dump-ascii] [-o<options>] [-l<log-file-path>] -s<file-system-storage-path> -m<mount-point>\n");
     exit(1);
   }
   if (strlen(options)==0) {
