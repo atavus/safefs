@@ -69,38 +69,50 @@ void initialise(unsigned char *offsets, uint64_t pos, unsigned char *ix0, unsign
 }
 
 void encipher(unsigned char *f_ring, unsigned char *offsets, uint64_t pos, unsigned char* data, uint64_t ofs, uint64_t len) {
-  unsigned char ix0, ix1, ix2, ix3, ix4;
-  initialise(offsets,pos,&ix0,&ix1,&ix2,&ix3,&ix4);
-  for(uint64_t ptr=ofs; ptr<(ofs+len); ptr++) {
-    unsigned char k4 = ix4 + data[ptr];
-    data[ptr] = f_ring[k4];
-    unsigned char k3 = ix3 + data[ptr];
-    data[ptr] = f_ring[k3];
-    unsigned char k2 = ix2 + data[ptr];
-    data[ptr] = f_ring[k2];
-    unsigned char k1 = ix1 + data[ptr];
-    data[ptr] = f_ring[k1];
-    unsigned char k0 = ix0 + data[ptr];
-    data[ptr] = f_ring[k0];
-    increment(&ix0,&ix1,&ix2,&ix3,&ix4);
+  uint64_t ptr;
+  int i;
+  unsigned char k;
+  unsigned char ix[5];
+  for(i=4;i>=0;i--) {
+    ix[i] = (offsets[i] + pos);
+    pos /= 256;
+  }
+  for(ptr=ofs; len>0; ptr++) {
+    len--;
+    k = data[ptr];
+    for(i=4;i>=0;i--) {
+      k += ix[i];
+      k = f_ring[k];
+    }
+    data[ptr] = k;
+    for(i=4;i>=0;i--) {
+      ix[i]++;
+      if (ix[i]!=0) break;
+    }
   }
 }
 
 void decipher(unsigned char *r_ring, unsigned char *offsets, uint64_t pos, unsigned char* data, uint64_t ofs, uint64_t len) {
-  unsigned char ix0, ix1, ix2, ix3, ix4;
-  initialise(offsets,pos,&ix0,&ix1,&ix2,&ix3,&ix4);
-  for(uint64_t ptr=ofs; ptr<(ofs+len); ptr++) {
-    unsigned char k0 = data[ptr];
-    data[ptr] = r_ring[k0] - ix0;
-    unsigned char k1 = data[ptr];
-    data[ptr] = r_ring[k1] - ix1;
-    unsigned char k2 = data[ptr];
-    data[ptr] = r_ring[k2] - ix2;
-    unsigned char k3 = data[ptr];
-    data[ptr] = r_ring[k3] - ix3;
-    unsigned char k4 = data[ptr];
-    data[ptr] = r_ring[k4] - ix4;
-    increment(&ix0,&ix1,&ix2,&ix3,&ix4);
+  uint64_t ptr;
+  int i;
+  unsigned char k;
+  unsigned char ix[5];
+  for(i=4;i>=0;i--) {
+    ix[i] = (offsets[i] + pos);
+    pos /= 256;
+  }
+  for(ptr=ofs; len>0; ptr++) {
+    len--;
+    k = data[ptr];
+    for(i=0;i<5;i++) {
+      k = r_ring[k];
+      k -= ix[i];
+    }
+    data[ptr] = k;
+    for(i=4;i>=0;i--) {
+      ix[i]++;
+      if (ix[i]!=0) break;
+    }
   }
 }
 

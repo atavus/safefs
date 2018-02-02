@@ -3,7 +3,7 @@ INC_PATH=-I/usr/local/include
 LIB_PATH=-L/usr/local/lib
 LIBS=-losxfuse -lpthread
 CC=cc
-CFLAGS=-std=c99 -Wall -Wextra -Wno-unused-parameter -m64 -O3 -D_FILE_OFFSET_BITS=64 -D_REENTRANT -D_THREAD_SAFE
+CFLAGS=-std=c99 -Wall -Wextra -Wno-unused-parameter -m64 -Ofast -D_FILE_OFFSET_BITS=64 -D_REENTRANT -D_THREAD_SAFE
 
 .c.o:
 	@echo Compile $< into $@
