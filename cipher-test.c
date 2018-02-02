@@ -23,33 +23,27 @@ void check_cipher_accuracy()
   unsigned char check[65536];
   memcpy(check,orig,65536);
 
-  unsigned char offsets[5];
-  memset(offsets,0,5);
+  unsigned char offsets[8];
+  offsets[0] = 0xdb;
+  offsets[1] = 0xea;
+  offsets[2] = 0xf9;
+  offsets[3] = 0x08;
+  offsets[4] = 0x17;
+  offsets[5] = 0x17;
+  offsets[6] = 0x17;
+  offsets[7] = 0x17;
 
-  encipher(f_ring,offsets,458752,check,0,65536);
+  encipher(f_ring,offsets,397312,check,0,65536);
   if (!memcmp(orig,check,65536)) {
     fprintf(stderr,"encipher algorithm broken\n");
     exit(1);
   }
 
-  for(int pos=458752; pos<524288; pos+=256) {
-    decipher(r_ring,offsets,pos,check,pos-458752,256);
-  }
+  decipher(r_ring,offsets,397312,check,0,61440);
+  decipher(r_ring,offsets,458752,check,61440,4096);
+
   if (memcmp(orig,check,65536)) {
     fprintf(stderr,"decipher algorithm broken\n");
-    exit(1);
-  }
-
-  // test writing then reading from a different offset
-  memcpy(check,orig,65536);
-  encipher(f_ring,offsets,397312,check,0,65536);
-  if (!memcmp(orig,check,65536)) {
-    fprintf(stderr,"encipher algorithm broken in offset encipherment\n");
-    exit(1);
-  }
-  decipher(r_ring,offsets,458752,&check[61440],0,4096);
-  if (memcmp(&orig[61440],&check[61440],4096)) {
-    fprintf(stderr,"decipher algorithm broken in offset decipherment\n");
     exit(1);
   }
 
@@ -70,8 +64,8 @@ void check_cipher_histogram() {
     check[i] = 0;
   }
 
-  unsigned char offsets[5];
-  for(int i=0; i<5; i++) {
+  unsigned char offsets[8];
+  for(int i=0; i<8; i++) {
     offsets[i] = random();
   }
 
@@ -95,8 +89,8 @@ void check_cipher_period() {
 
   srandomdev();
 
-  unsigned char offsets[5];
-  memset(offsets,0,5);
+  unsigned char offsets[8];
+  memset(offsets,0,8);
 
   unsigned char f_ring[256];
   unsigned char r_ring[256];
@@ -142,8 +136,8 @@ void check_encipher_speed() {
 
   srandomdev();
 
-  unsigned char offsets[5];
-  memset(offsets,0,5);
+  unsigned char offsets[8];
+  memset(offsets,0,8);
 
   unsigned char f_ring[256];
   unsigned char r_ring[256];
@@ -174,8 +168,8 @@ void check_decipher_speed() {
 
   srandomdev();
 
-  unsigned char offsets[5];
-  memset(offsets,0,5);
+  unsigned char offsets[8];
+  memset(offsets,0,8);
 
   unsigned char f_ring[256];
   unsigned char r_ring[256];

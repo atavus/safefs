@@ -25,16 +25,15 @@
  * Install FUSE for MacOS here: https://osxfuse.github.io
  *
  * Inputs:
- * - 4 digit secret used to derive which 4 rings to use (10 rings available)
- * - 8 digit secret used to derive which 4 ring offsets to use (100 offsets available)
- * = 1,000,000,000,000 input combinations possible
+ * - 10 digit secret used to derive which 8 ring offsets to use (256 offsets available)
+ * = 6.6e19 input combinations possible
+ * = 1.8e19 ring offset combinations possible
  *
  * Each file has the following format:
- * - 4 byte random ring offsets for file content (encrypted using original ring and offset values)
- * - 4 byte encryption of original offset values (used to verify that the original settings are correct)
- * - file data encrypted using original rings and random ring offsets
+ * - 256 byte random rotor settings (encrypted)
+ * - file data encrypted using random rotor settings and ring offsets
  * = each files encrypted data is different even if the unencrypted data is the same
- * = each file is just 8 bytes larger than the original file size
+ * = each file is just 256 bytes larger than the original file size
  * 
  */
 
@@ -63,9 +62,9 @@ int write_rotor(const char* cmd, const char* path, btnode* node, struct fuse_fil
   generate_random_rotor(node->f_ring,node->r_ring);
   unsigned char out[256];
   memcpy(out,node->f_ring,256);
-  logdata(cmd,"rotor plain text",0,out,256);
+  logdata(cmd,"rotor plain text",16,0,out,256);
   encode_rotor(out,Y_STATE->rotor_digest);
-  logdata(cmd,"rotor cipher text",0,out,256);
+  logdata(cmd,"rotor cipher text",16,0,out,256);
   rc = pwrite(info->fh,out,256,0);
   memset(out,0,256);
   if (rc<0) {
@@ -96,9 +95,10 @@ void resolve(const char* path, char fpath[PATH_MAX]) {
 void determine_rotor_offsets(struct y_state *y_state, char *pwd) {
 
   // calculate the rotor offsets from the pin code
-  for(int i=0; i<5; i++) {
+  memset(y_state->offsets,0,8);
+  for(int i=0; i<8; i++) {
     y_state->offsets[i] = 0;
-    for(int j=0; j<4; j++) {
+    for(int j=0; j<3; j++) {
       y_state->offsets[i] <<= 1;
       y_state->offsets[i] += (i+j);
       y_state->offsets[i] += pwd[i+j];
@@ -109,9 +109,9 @@ void determine_rotor_offsets(struct y_state *y_state, char *pwd) {
   {
     MD5_CTX context;
     MD5Init (&context);
-    MD5Update (&context, y_state->offsets, 5);
+    MD5Update (&context, y_state->offsets, 8);
     MD5Update (&context, pwd, 8);
-    MD5Update (&context, y_state->offsets, 5);
+    MD5Update (&context, y_state->offsets, 8);
     MD5Final (y_state->safe_digest, &context);
   }
 
@@ -119,9 +119,9 @@ void determine_rotor_offsets(struct y_state *y_state, char *pwd) {
   {
     MD5_CTX context;
     MD5Init (&context);
-    MD5Update (&context, y_state->offsets, 5);
+    MD5Update (&context, y_state->offsets, 8);
     MD5Update (&context, y_state->safe_digest, 16);
-    MD5Update (&context, y_state->offsets, 5);
+    MD5Update (&context, y_state->offsets, 8);
     MD5Final (y_state->rotor_digest, &context);
   }
 
@@ -378,9 +378,9 @@ int y_open(const char *path, struct fuse_file_info *info) {
     if (rc!=256) {
       rc = logerr("y_open","pread path=%s",path);
     } else {
-      logdata("y_open","rotor cipher text",0,f_ring,256);
+      logdata("y_open","rotor cipher text",16,0,f_ring,256);
       decode_rotor(f_ring,Y_STATE->rotor_digest);
-      logdata("y_open","rotor plain text",0,f_ring,256);
+      logdata("y_open","rotor plain text",16,0,f_ring,256);
       derive_reverse_rotor(f_ring,r_ring);
       loaded = 1;
       rc = 0;
@@ -445,9 +445,12 @@ int y_read(const char *path, char *data, size_t size, off_t ofs, struct fuse_fil
   if (rc<0) { 
     rc = logerr("y_read","pread path=%s",path);
   } else { 
-    logdata("y_read","cipher text",ofs,(unsigned char*)data,rc);
+    logdata("y_read","forward rotors",16,0,node->f_ring,256);
+    logdata("y_read","reverse rotors",16,0,node->r_ring,256);
+    logdata("y_read","rotor offsets",16,0,Y_STATE->offsets,8);
+    logdata("y_read","cipher text",64,ofs,(unsigned char*)data,rc);
     decipher(node->r_ring,Y_STATE->offsets,ofs,(unsigned char*)data,0,rc);
-    logdata("y_read","plain text",ofs,(unsigned char*)data,rc);
+    logdata("y_read","plain text",64,ofs,(unsigned char*)data,rc);
   }
   loginfo("y_read","path=%s size=%d ofs=%d rc=%d",path,size,ofs,rc);
   return rc; 
@@ -470,9 +473,12 @@ int y_write(const char *path, const char *data, size_t size, off_t ofs, struct f
   int cmp = 0;
   unsigned char *buf = malloc(size);
   memcpy(buf,data,size);
-  logdata("y_write","plain text",ofs,buf,size);
+  logdata("y_write","forward rotors",16,0,node->f_ring,256);
+  logdata("y_write","reverse rotors",16,0,node->r_ring,256);
+  logdata("y_write","rotor offsets",16,0,Y_STATE->offsets,8);
+  logdata("y_write","plain text",64,ofs,buf,size);
   encipher(node->f_ring,Y_STATE->offsets,ofs,buf,0,size);
-  logdata("y_write","cipher text",ofs,buf,size);
+  logdata("y_write","cipher text",64,ofs,buf,size);
   rc = pwrite(info->fh,buf,size,ofs+256);
   if (rc<0) {
     rc = logerr("y_write","pwrite path=%s",path);
@@ -528,7 +534,7 @@ int y_fsync(const char *path, int datasync, struct fuse_file_info *info) {
 
 int y_setxattr(const char *path, const char *name, const char *val, size_t size, int pos, uint32_t opts) {
   logdebug("y_setxattr","path=%s name=%s size=%d pos=%d opts=%d",path,name,size,pos,opts);
-  logdata("y_setxattr","value",0,(unsigned char*)val,size);
+  logdata("y_setxattr","value",64,0,(unsigned char*)val,size);
   if (!strcmp("com.apple.quarantine",name)) return 0;
   int rc = 0;
   char fpath[PATH_MAX];
@@ -547,7 +553,7 @@ int y_getxattr(const char *path, const char *name, char *val, size_t size, uint3
   resolve(path,fpath);
   rc = getxattr(fpath,name,val,size,0,opts);
   if (rc<0) { if (errno!=ENOATTR) rc = logerr("y_getxattr","getxattr path=%s name=%s",path,name); else rc = -errno; }
-  else { logdata("y_getxattr","value",0,(unsigned char*)val,rc); }
+  else { logdata("y_getxattr","value",64,0,(unsigned char*)val,rc); }
   loginfo("y_getxattr","path=%s name=%s size=%d opts=%d rc=%d",path,name,size,opts,rc);
   return rc; 
 }
@@ -856,9 +862,9 @@ int main(int argc, char** argv) {
   {
     char *pwd = getenv("SAFEFS_PIN");
     if (pwd==NULL) {
-      pwd = getpass("Enter the 8-digit pin code:");
+      pwd = getpass("Enter the 10-digit pin code:");
     }
-    if (strlen(pwd)!=8) {
+    if (strlen(pwd)!=10) {
       memset(pwd,0,strlen(pwd));
       fprintf(stderr,"Invalid pin code length\n");
 	  exit(1);

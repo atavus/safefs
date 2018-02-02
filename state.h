@@ -8,9 +8,7 @@ struct y_state {
   btnode*       list;
   char          rootdir[PATH_MAX];
   FILE*         logfile;
-  unsigned char f_ring[256];
-  unsigned char r_ring[256];
-  unsigned char offsets[5];
+  unsigned char offsets[8];
   unsigned char safe_digest[16];
   unsigned char rotor_digest[16];
 };

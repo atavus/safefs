@@ -51,7 +51,7 @@ void loginfo(const char* fusecmd, const char* fmt, ...) {
   }
 }
 
-void logdata(const char* fusecmd, const char* type, uint64_t ofs, const unsigned char* data, size_t size) {
+void logdata(const char* fusecmd, const char* type, uint64_t width, uint64_t ofs, const unsigned char* data, size_t size) {
   if (trace_on && data!=NULL) {
     pthread_mutex_lock(&mutexlog);
     time_t current_time = time(NULL);
@@ -61,7 +61,7 @@ void logdata(const char* fusecmd, const char* type, uint64_t ofs, const unsigned
     buf[strlen(buf)-1]=0;
     fprintf(Y_STATE->logfile,"%s : %-14s : %s : offset=%llu size=%zu",buf,fusecmd,type,ofs,size);
     for(uint64_t ptr=0; ptr<size; ptr++) {
-      if ((ptr%16)==0) fprintf(Y_STATE->logfile,"\n%08llx",(ofs+ptr));
+      if ((ptr%width)==0) fprintf(Y_STATE->logfile,"\n%08llx",(ofs+ptr));
       if (data_ascii && data[ptr]>31 && data[ptr]<127) {
         fprintf(Y_STATE->logfile,"  %c",data[ptr]);
       } else {
