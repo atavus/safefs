@@ -73,7 +73,7 @@ int write_rotor(const char* cmd, const char* path, btnode* node, struct fuse_fil
     return rc;
   } else if (rc!=256) {
     logerr(cmd,"pwrite failed for write offsets: %s",path);
-    rc = -EINVAL;
+    rc = -EIO;
     return rc;
   } else {
     rc = 0;
@@ -408,7 +408,7 @@ int y_open(const char *path, struct fuse_file_info *info) {
           rc = write_rotor("y_open",path,node,info);
         } else {
           logerr("y_open","failed to load rotor settings path=%s",path);
-          rc = -EINVAL;
+          rc = -EIO;
         }
       } else {
         memcpy(node->f_ring,f_ring,256);
@@ -436,8 +436,8 @@ int y_read(const char *path, char *data, size_t size, off_t ofs, struct fuse_fil
   // get the node entry for this file descriptor
   btnode *node = findLink(info->fh,&Y_STATE->list);
   if (node==NULL) {
-    logerr("y_read","find path=%s",path);
-    rc = -EINVAL;
+    logerr("y_read","find path=%s failed to find node",path);
+    rc = -EIO;
     return rc;
   }
   // read from the file skipping the first 256 bytes
@@ -461,8 +461,8 @@ int y_write(const char *path, const char *data, size_t size, off_t ofs, struct f
   // get the node entry for this file descriptor
   btnode *node = findLink(info->fh,&Y_STATE->list);
   if (node==NULL) {
-    logerr("y_write","find path=%s",path);
-    rc = -EINVAL;
+    logerr("y_write","find path=%s failed to find node",path);
+    rc = -EIO;
     loginfo("y_write","rc=%d",rc);
     return rc;
   }
@@ -478,14 +478,14 @@ int y_write(const char *path, const char *data, size_t size, off_t ofs, struct f
     rc = logerr("y_write","pwrite path=%s",path);
   } else {
     logdebug("y_write","fh=%d offset=%d size=%d path=%s",info->fh,ofs+256,size,path);
-    decipher(node->f_ring,Y_STATE->offsets,ofs,buf,0,size);
+    decipher(node->r_ring,Y_STATE->offsets,ofs,buf,0,size);
     cmp = memcmp(buf,data,size);
   }
   free(buf);
-  if (rc==0) {
+  if (rc>=0) {
     if (cmp) {
       logerr("y_write","cipher verify failed offset=%d size=%d path=%s",ofs,size,path);
-      rc = -EINVAL;
+      rc = -EIO;
     }
   }
   loginfo("y_write","path=%s offset=%d size=%d rc=%d",path,ofs,size,rc);

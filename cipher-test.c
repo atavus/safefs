@@ -15,26 +15,41 @@ void check_cipher_accuracy()
   unsigned char r_ring[256];
   generate_random_rotor(f_ring,r_ring);
 
-  unsigned char check[65536];
+  unsigned char orig[65536];
   for(int i=0; i<65536; i++) {
-    check[i] = i;
+    orig[i] = i;
   }
 
-  unsigned char orig[65536];
-  memcpy(orig,check,65536);
+  unsigned char check[65536];
+  memcpy(check,orig,65536);
 
   unsigned char offsets[5];
   memset(offsets,0,5);
 
-  encipher(f_ring,offsets,0,check,0,65536);
+  encipher(f_ring,offsets,458752,check,0,65536);
   if (!memcmp(orig,check,65536)) {
     fprintf(stderr,"encipher algorithm broken\n");
     exit(1);
   }
 
-  decipher(r_ring,offsets,0,check,0,65536);
+  for(int pos=458752; pos<524288; pos+=256) {
+    decipher(r_ring,offsets,pos,check,pos-458752,256);
+  }
   if (memcmp(orig,check,65536)) {
     fprintf(stderr,"decipher algorithm broken\n");
+    exit(1);
+  }
+
+  // test writing then reading from a different offset
+  memcpy(check,orig,65536);
+  encipher(f_ring,offsets,397312,check,0,65536);
+  if (!memcmp(orig,check,65536)) {
+    fprintf(stderr,"encipher algorithm broken in offset encipherment\n");
+    exit(1);
+  }
+  decipher(r_ring,offsets,458752,&check[61440],0,4096);
+  if (memcmp(&orig[61440],&check[61440],4096)) {
+    fprintf(stderr,"decipher algorithm broken in offset decipherment\n");
     exit(1);
   }
 
