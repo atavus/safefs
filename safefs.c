@@ -792,16 +792,17 @@ int main(int argc, char** argv) {
   memset(mount,0,sizeof(mount));
   memset(logfile,0,sizeof(logfile));
   for(int i=1; i<argc; i++) {
-    if (strlen(argv[i])>2 && !(memcmp("-o",argv[i],2))) strcpy(options,argv[i]);
-    if (strlen(argv[i])>2 && !(memcmp("-s",argv[i],2))) strcpy(storage,&argv[i][2]);
-    if (strlen(argv[i])>2 && !(memcmp("-m",argv[i],2))) strcpy(mount,&argv[i][2]);
-    if (strlen(argv[i])>2 && !(memcmp("-l",argv[i],2))) strcpy(logfile,&argv[i][2]);
-    if (!strcmp("-debug",argv[i])) { debug_on = 1; info_on = 1; }
-    if (!strcmp("-info",argv[i])) { info_on = 1; }
-    if (!strcmp("-dump-ascii",argv[i])) { data_ascii = 1; }
+    if (!strcmp("-trace",argv[i])) { trace_on = 1; debug_on = 1; info_on = 1; }
+    else if (!strcmp("-debug",argv[i])) { debug_on = 1; info_on = 1; }
+    else if (!strcmp("-info",argv[i])) { info_on = 1; }
+    else if (!strcmp("-dump-ascii",argv[i])) { data_ascii = 1; }
+    else if (strlen(argv[i])>2 && !(memcmp("-o",argv[i],2))) strcpy(options,argv[i]);
+    else if (strlen(argv[i])>2 && !(memcmp("-s",argv[i],2))) strcpy(storage,&argv[i][2]);
+    else if (strlen(argv[i])>2 && !(memcmp("-m",argv[i],2))) strcpy(mount,&argv[i][2]);
+    else if (strlen(argv[i])>2 && !(memcmp("-l",argv[i],2))) strcpy(logfile,&argv[i][2]);
   }
   if (strlen(storage)==0 || strlen(mount)==0) {
-    fprintf(stderr,"Syntax: safefs [-debug] [-info] [-dump-ascii] [-o<options>] [-l<log-file-path>] -s<file-system-storage-path> -m<mount-point>\n");
+    fprintf(stderr,"Syntax: safefs [-trace|-debug|-info] [-dump-ascii] [-o<options>] [-l<log-file-path>] -s<file-system-storage-path> -m<mount-point>\n");
     exit(1);
   }
   if (strlen(options)==0) {

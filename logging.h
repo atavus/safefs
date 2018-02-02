@@ -1,5 +1,6 @@
 #include <unistd.h>
 
+extern int trace_on;
 extern int debug_on;
 extern int info_on;
 extern int data_ascii;

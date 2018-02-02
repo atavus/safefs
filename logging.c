@@ -8,6 +8,7 @@
 #include "logging.h"
 #include "state.h"
 
+int trace_on = 0;
 int debug_on = 0;
 int info_on = 0;
 int data_ascii = 0;
@@ -51,14 +52,14 @@ void loginfo(const char* fusecmd, const char* fmt, ...) {
 }
 
 void logdata(const char* fusecmd, const char* type, uint64_t ofs, const unsigned char* data, size_t size) {
-  if (debug_on && data!=NULL) {
+  if (trace_on && data!=NULL) {
     pthread_mutex_lock(&mutexlog);
     time_t current_time = time(NULL);
     struct tm *tm = localtime(&current_time);
     char buf[30];
     asctime_r(tm,buf);
     buf[strlen(buf)-1]=0;
-    fprintf(Y_STATE->logfile,"%s : %-14s : %s : size=%zu",buf,fusecmd,type,size);
+    fprintf(Y_STATE->logfile,"%s : %-14s : %s : offset=%llu size=%zu",buf,fusecmd,type,ofs,size);
     for(uint64_t ptr=0; ptr<size; ptr++) {
       if ((ptr%16)==0) fprintf(Y_STATE->logfile,"\n%08llx",(ofs+ptr));
       if (data_ascii && data[ptr]>31 && data[ptr]<127) {
