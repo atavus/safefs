@@ -35,14 +35,14 @@ void check_cipher_accuracy()
 
   int endian = determine_endianness(offsets);
 
-  encipher(f_ring,offsets,397312,check,0,65536,endian);
+  encipher(f_ring,offsets,397312,check,0,65536,endian,8);
   if (!memcmp(orig,check,65536)) {
     fprintf(stderr,"encipher algorithm broken\n");
     exit(1);
   }
 
-  decipher(r_ring,offsets,397312,check,0,61440,endian);
-  decipher(r_ring,offsets,458752,check,61440,4096,endian);
+  decipher(r_ring,offsets,397312,check,0,61440,endian,8);
+  decipher(r_ring,offsets,458752,check,61440,4096,endian,8);
 
   if (memcmp(orig,check,65536)) {
     fprintf(stderr,"decipher algorithm broken\n");
@@ -73,7 +73,7 @@ void check_cipher_histogram() {
 
   int endian = determine_endianness(offsets);
 
-  encipher(f_ring,offsets,0,check,0,65536,endian);
+  encipher(f_ring,offsets,0,check,0,65536,endian,8);
 
   unsigned long histo[256];
   memset(histo,0,sizeof(histo));
@@ -107,14 +107,14 @@ void check_cipher_period() {
 
   unsigned char check[1000000];
   memset(check,'a',sizeof(check));
-  encipher(f_ring,offsets,0,check,0,sizeof(check),endian);
+  encipher(f_ring,offsets,0,check,0,sizeof(check),endian,8);
 
   unsigned int periods = 0;
   unsigned char verify[1000000];
   unsigned int n=16;
   for(unsigned long ofs=0; ofs<8589934592L; ofs+=1000000) {
     memset(verify,'a',sizeof(verify));
-    encipher(f_ring,offsets,ofs,verify,0,sizeof(verify),endian);
+    encipher(f_ring,offsets,ofs,verify,0,sizeof(verify),endian,8);
     for(unsigned int i=n; i<sizeof(verify); i++) {
       int l=0;
       for(unsigned int j=0; j<1024 && (i+j)<sizeof(verify); j++) {
@@ -126,7 +126,7 @@ void check_cipher_period() {
         periods++;
       }
     }
-    decipher(r_ring,offsets,ofs,verify,0,sizeof(verify),endian);
+    decipher(r_ring,offsets,ofs,verify,0,sizeof(verify),endian,8);
     if (memcmp(verify,initial,1000000)) {
       fprintf(stderr,"decipher algorithm broken on long file at %lu\n",ofs);
       exit(1);
@@ -157,16 +157,18 @@ void check_encipher_speed() {
   unsigned char check[1000000];
   memset(check,'a',sizeof(check));
 
-  struct timeval stop, start;
-  gettimeofday(&start, NULL);
-  for(int i=0; i<1024; i++) {
-    encipher(f_ring,offsets,0,check,0,sizeof(check),endian);
+  for(int rounds=2; rounds<=8; rounds*=2) {
+    struct timeval stop, start;
+    gettimeofday(&start, NULL);
+    for(int i=0; i<1024; i++) {
+      encipher(f_ring,offsets,0,check,0,sizeof(check),endian,rounds);
+    }
+    gettimeofday(&stop, NULL);
+    unsigned long elapsed_usec = (stop.tv_sec - start.tv_sec)*1000000L + (stop.tv_usec - start.tv_usec);
+    unsigned long elapsed_sec = elapsed_usec / 1000000L;
+    unsigned long mbytes_per_sec = 1000000L * 1024L / elapsed_sec / 1024L / 1024L;
+    fprintf(stderr,"%lu Mbytes per second for %d rounds\n",mbytes_per_sec,rounds);
   }
-  gettimeofday(&stop, NULL);
-  unsigned long elapsed_usec = (stop.tv_sec - start.tv_sec)*1000000L + (stop.tv_usec - start.tv_usec);
-  unsigned long elapsed_sec = elapsed_usec / 1000000L;
-  unsigned long mbytes_per_sec = 1000000L * 1024L / elapsed_sec / 1024L / 1024L;
-  fprintf(stderr,"%lu Mbytes per second\n",mbytes_per_sec);
 
 }
 
@@ -191,16 +193,18 @@ void check_decipher_speed() {
   unsigned char check[1000000];
   memset(check,'a',sizeof(check));
 
-  struct timeval stop, start;
-  gettimeofday(&start, NULL);
-  for(int i=0; i<1024; i++) {
-    decipher(f_ring,offsets,0,check,0,sizeof(check),endian);
+  for(int rounds=2; rounds<=8; rounds*=2) {
+    struct timeval stop, start;
+    gettimeofday(&start, NULL);
+    for(int i=0; i<1024; i++) {
+      decipher(f_ring,offsets,0,check,0,sizeof(check),endian,rounds);
+    }
+    gettimeofday(&stop, NULL);
+    unsigned long elapsed_usec = (stop.tv_sec - start.tv_sec)*1000000L + (stop.tv_usec - start.tv_usec);
+    unsigned long elapsed_sec = elapsed_usec / 1000000L;
+    unsigned long mbytes_per_sec = 1000000L * 1024L / elapsed_sec / 1024L / 1024L;
+    fprintf(stderr,"%lu Mbytes per second for %d rounds\n",mbytes_per_sec,rounds);
   }
-  gettimeofday(&stop, NULL);
-  unsigned long elapsed_usec = (stop.tv_sec - start.tv_sec)*1000000L + (stop.tv_usec - start.tv_usec);
-  unsigned long elapsed_sec = elapsed_usec / 1000000L;
-  unsigned long mbytes_per_sec = 1000000L * 1024L / elapsed_sec / 1024L / 1024L;
-  fprintf(stderr,"%lu Mbytes per second\n",mbytes_per_sec);
 
 }
 

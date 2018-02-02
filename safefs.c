@@ -156,9 +156,9 @@ void check_rotor_offsets_match(struct y_state *y_state) {
         close(fd);
         exit(1);
       }
-      // write the enciphered digest to the file
+      // write the digest ciphertext to the file
       memcpy(out,y_state->safe_digest,16);
-      encipher(f_ring,y_state->offsets,0,out,0,16,y_state->endian);
+      encipher(f_ring,y_state->offsets,0,out,0,16,y_state->endian,y_state->rounds);
       rc = pwrite(fd,out,16,256);
       if (rc!=16) {
         perror("Failed to write .safefs");
@@ -187,7 +187,7 @@ void check_rotor_offsets_match(struct y_state *y_state) {
       close(fd);
       exit(1);
     }
-    decipher(r_ring,y_state->offsets,0,out,0,16,y_state->endian);
+    decipher(r_ring,y_state->offsets,0,out,0,16,y_state->endian,y_state->rounds);
     close(fd);
     // check that the md5 hash matches
     if (memcmp(y_state->safe_digest,out,16)) {
@@ -451,7 +451,7 @@ int y_read(const char *path, char *data, size_t size, off_t ofs, struct fuse_fil
       logdata("y_read","rotor offsets",16,0,Y_STATE->offsets,8);
       logdata("y_read","cipher text",64,ofs,(unsigned char*)data,rc);
     }
-    decipher(node->r_ring,Y_STATE->offsets,ofs,(unsigned char*)data,0,rc,Y_STATE->endian);
+    decipher(node->r_ring,Y_STATE->offsets,ofs,(unsigned char*)data,0,rc,Y_STATE->endian,Y_STATE->rounds);
     if (trace_on) {
       logdata("y_read","plain text",64,ofs,(unsigned char*)data,rc);
     }
@@ -482,7 +482,7 @@ int y_write(const char *path, const char *data, size_t size, off_t ofs, struct f
     logdata("y_write","rotor offsets",16,0,Y_STATE->offsets,8);
     logdata("y_write","plain text",64,ofs,buf,size);
   }
-  encipher(node->f_ring,Y_STATE->offsets,ofs,buf,0,size,Y_STATE->endian);
+  encipher(node->f_ring,Y_STATE->offsets,ofs,buf,0,size,Y_STATE->endian,Y_STATE->rounds);
   if (trace_on) {
     logdata("y_write","cipher text",64,ofs,buf,size);
   }
@@ -785,6 +785,14 @@ int main(int argc, char** argv) {
     exit(1);
   }
 
+  // create fuse state
+  y_state = calloc(1,sizeof(struct y_state));
+  if (y_state==NULL) {
+    fprintf(stderr,"Out of memory\n");
+    exit(1);
+  }
+  y_state->rounds = 8;
+
   // interpret the command line options
   char  options[1024];
   char  storage[1024];
@@ -795,6 +803,9 @@ int main(int argc, char** argv) {
   memset(mount,0,sizeof(mount));
   memset(logfile,0,sizeof(logfile));
   for(int i=1; i<argc; i++) {
+    if (!strcmp("-2",argv[i])) { y_state->rounds = 2; }
+    else if (!strcmp("-4",argv[i])) { y_state->rounds = 4; }
+    else if (!strcmp("-8",argv[i])) { y_state->rounds = 8; }
     if (!strcmp("-trace",argv[i])) { trace_on = 1; debug_on = 1; info_on = 1; }
     else if (!strcmp("-debug",argv[i])) { debug_on = 1; info_on = 1; }
     else if (!strcmp("-info",argv[i])) { info_on = 1; }
@@ -805,7 +816,7 @@ int main(int argc, char** argv) {
     else if (strlen(argv[i])>2 && !(memcmp("-l",argv[i],2))) strcpy(logfile,&argv[i][2]);
   }
   if (strlen(storage)==0 || strlen(mount)==0) {
-    fprintf(stderr,"Syntax: safefs [-trace|-debug|-info] [-dump-ascii] [-o<options>] [-l<log-file-path>] -s<file-system-storage-path> -m<mount-point>\n");
+    fprintf(stderr,"Syntax: safefs [-trace|-debug|-info] [-dump-ascii] [-2|-4|-8] [-o<options>] [-l<log-file-path>] -s<file-system-storage-path> -m<mount-point>\n");
     exit(1);
   }
   if (strlen(options)==0) {
@@ -837,13 +848,6 @@ int main(int argc, char** argv) {
 
   // seed the random number generator
   srandomdev();
-
-  // create fuse state
-  y_state = calloc(1,sizeof(struct y_state));
-  if (y_state==NULL) {
-    fprintf(stderr,"Out of memory\n");
-    exit(1);
-  }
 
   // create the fuse log file
   y_state->logfile = fopen(logfile,"w");
@@ -887,12 +891,12 @@ int main(int argc, char** argv) {
 	  check[i] = i;
 	}
 	memcpy(orig,check,65536);
-    encipher(f_ring,y_state->offsets,0,check,0,65536,y_state->endian);
+    encipher(f_ring,y_state->offsets,0,check,0,65536,y_state->endian,y_state->rounds);
 	if (!memcmp(orig,check,65536)) {
       fprintf(stderr,"encipher algorithm broken\n");
 	  exit(1);
 	}
-    decipher(r_ring,y_state->offsets,0,check,0,65536,y_state->endian);
+    decipher(r_ring,y_state->offsets,0,check,0,65536,y_state->endian,y_state->rounds);
 	if (memcmp(orig,check,65536)) {
       fprintf(stderr,"decipher algorithm broken\n");
 	  exit(1);
