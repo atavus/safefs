@@ -2,6 +2,23 @@
 #include <string.h>
 #include "cipher.h"
 
+int determine_endianness(unsigned char offsets[8]) {
+  union {
+    unsigned char ix[8];
+    uint64_t value;
+  } endian;
+  endian.value = 1;
+  if (endian.ix[0]==0) {
+    // reorder the offsets for big endian representation
+    for(int i=0; i<8; i++) {
+      unsigned char ch = offsets[i];
+      offsets[i] = offsets[7-i];
+      offsets[7-i] = ch;
+    }
+  }
+  return endian.ix[0];
+}
+
 void generate_random_rotor(unsigned char f_ring[256], unsigned char r_ring[256]) {
   for(int j=0; j<256; j++) {
     f_ring[j] = j;
@@ -45,8 +62,7 @@ void derive_reverse_rotor(unsigned char f_ring[256], unsigned char r_ring[256]) 
   }
 }
 
-// assume little endian architecture
-void encipher(unsigned char f_ring[256], unsigned char offsets[8], uint64_t pos, unsigned char* data, uint64_t ofs, uint64_t len) {
+void encipher(unsigned char f_ring[256], unsigned char offsets[8], uint64_t pos, unsigned char* data, uint64_t ofs, uint64_t len, int endian) {
   uint64_t ptr;
   int i;
   unsigned char k;
@@ -56,19 +72,34 @@ void encipher(unsigned char f_ring[256], unsigned char offsets[8], uint64_t pos,
   } advance;
   memcpy(advance.ix,offsets,8);
   advance.position += pos;
-  for(ptr=ofs; len>0; ptr++) {
-    len--;
-    k = data[ptr];
-    for(i=0;i<8;i++) {
-      k += advance.ix[i];
-      k = f_ring[k];
+  if (endian) {
+    // little endian
+    for(ptr=ofs; len>0; ptr++) {
+      len--;
+      k = data[ptr];
+      for(i=0;i<8;i++) {
+        k += advance.ix[i];
+        k = f_ring[k];
+      }
+      data[ptr] = k;
+      advance.position++;
     }
-    data[ptr] = k;
-    advance.position++;
+  } else {
+    // big endian
+    for(ptr=ofs; len>0; ptr++) {
+      len--;
+      k = data[ptr];
+      for(i=7;i>=0;i--) {
+        k += advance.ix[i];
+        k = f_ring[k];
+      }
+      data[ptr] = k;
+      advance.position++;
+    }
   }
 }
 
-void decipher(unsigned char r_ring[256], unsigned char offsets[8], uint64_t pos, unsigned char* data, uint64_t ofs, uint64_t len) {
+void decipher(unsigned char r_ring[256], unsigned char offsets[8], uint64_t pos, unsigned char* data, uint64_t ofs, uint64_t len, int endian) {
   uint64_t ptr;
   int i;
   unsigned char k;
@@ -78,15 +109,30 @@ void decipher(unsigned char r_ring[256], unsigned char offsets[8], uint64_t pos,
   } advance;
   memcpy(advance.ix,offsets,8);
   advance.position += pos;
-  for(ptr=ofs; len>0; ptr++) {
-    len--;
-    k = data[ptr];
-    for(i=7;i>=0;i--) {
-      k = r_ring[k];
-      k -= advance.ix[i];
+  if (endian) {
+    // little endian
+    for(ptr=ofs; len>0; ptr++) {
+      len--;
+      k = data[ptr];
+      for(i=7;i>=0;i--) {
+        k = r_ring[k];
+        k -= advance.ix[i];
+      }
+      data[ptr] = k;
+      advance.position++;
     }
-    data[ptr] = k;
-    advance.position++;
+  } else {
+    // big endian
+    for(ptr=ofs; len>0; ptr++) {
+      len--;
+      k = data[ptr];
+      for(i=0;i<8;i++) {
+        k = r_ring[k];
+        k -= advance.ix[i];
+      }
+      data[ptr] = k;
+      advance.position++;
+    }
   }
 }
 

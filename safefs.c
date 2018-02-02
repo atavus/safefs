@@ -158,7 +158,7 @@ void check_rotor_offsets_match(struct y_state *y_state) {
       }
       // write the enciphered digest to the file
       memcpy(out,y_state->safe_digest,16);
-      encipher(f_ring,y_state->offsets,0,out,0,16);
+      encipher(f_ring,y_state->offsets,0,out,0,16,y_state->endian);
       rc = pwrite(fd,out,16,256);
       if (rc!=16) {
         perror("Failed to write .safefs");
@@ -187,7 +187,7 @@ void check_rotor_offsets_match(struct y_state *y_state) {
       close(fd);
       exit(1);
     }
-    decipher(r_ring,y_state->offsets,0,out,0,16);
+    decipher(r_ring,y_state->offsets,0,out,0,16,y_state->endian);
     close(fd);
     // check that the md5 hash matches
     if (memcmp(y_state->safe_digest,out,16)) {
@@ -445,12 +445,16 @@ int y_read(const char *path, char *data, size_t size, off_t ofs, struct fuse_fil
   if (rc<0) { 
     rc = logerr("y_read","pread path=%s",path);
   } else { 
-    logdata("y_read","forward rotors",16,0,node->f_ring,256);
-    logdata("y_read","reverse rotors",16,0,node->r_ring,256);
-    logdata("y_read","rotor offsets",16,0,Y_STATE->offsets,8);
-    logdata("y_read","cipher text",64,ofs,(unsigned char*)data,rc);
-    decipher(node->r_ring,Y_STATE->offsets,ofs,(unsigned char*)data,0,rc);
-    logdata("y_read","plain text",64,ofs,(unsigned char*)data,rc);
+    if (trace_on) {
+      logdata("y_read","forward rotors",16,0,node->f_ring,256);
+      logdata("y_read","reverse rotors",16,0,node->r_ring,256);
+      logdata("y_read","rotor offsets",16,0,Y_STATE->offsets,8);
+      logdata("y_read","cipher text",64,ofs,(unsigned char*)data,rc);
+    }
+    decipher(node->r_ring,Y_STATE->offsets,ofs,(unsigned char*)data,0,rc,Y_STATE->endian);
+    if (trace_on) {
+      logdata("y_read","plain text",64,ofs,(unsigned char*)data,rc);
+    }
   }
   loginfo("y_read","path=%s size=%d ofs=%d rc=%d",path,size,ofs,rc);
   return rc; 
@@ -470,30 +474,23 @@ int y_write(const char *path, const char *data, size_t size, off_t ofs, struct f
     return rc;
   }
   // encipher the plain text and then write to the file skipping the first 256 bytes
-  int cmp = 0;
   unsigned char *buf = malloc(size);
   memcpy(buf,data,size);
-  logdata("y_write","forward rotors",16,0,node->f_ring,256);
-  logdata("y_write","reverse rotors",16,0,node->r_ring,256);
-  logdata("y_write","rotor offsets",16,0,Y_STATE->offsets,8);
-  logdata("y_write","plain text",64,ofs,buf,size);
-  encipher(node->f_ring,Y_STATE->offsets,ofs,buf,0,size);
-  logdata("y_write","cipher text",64,ofs,buf,size);
+  if (trace_on) {
+    logdata("y_write","forward rotors",16,0,node->f_ring,256);
+    logdata("y_write","reverse rotors",16,0,node->r_ring,256);
+    logdata("y_write","rotor offsets",16,0,Y_STATE->offsets,8);
+    logdata("y_write","plain text",64,ofs,buf,size);
+  }
+  encipher(node->f_ring,Y_STATE->offsets,ofs,buf,0,size,Y_STATE->endian);
+  if (trace_on) {
+    logdata("y_write","cipher text",64,ofs,buf,size);
+  }
   rc = pwrite(info->fh,buf,size,ofs+256);
   if (rc<0) {
     rc = logerr("y_write","pwrite path=%s",path);
-  } else {
-    logdebug("y_write","fh=%d offset=%d size=%d path=%s",info->fh,ofs+256,size,path);
-    decipher(node->r_ring,Y_STATE->offsets,ofs,buf,0,size);
-    cmp = memcmp(buf,data,size);
   }
   free(buf);
-  if (rc>=0) {
-    if (cmp) {
-      logerr("y_write","cipher verify failed offset=%d size=%d path=%s",ofs,size,path);
-      rc = -EIO;
-    }
-  }
   loginfo("y_write","path=%s offset=%d size=%d rc=%d",path,ofs,size,rc);
   return rc; 
 }
@@ -873,6 +870,10 @@ int main(int argc, char** argv) {
     memset(pwd,0,strlen(pwd));
   }
 
+  // determine if little endian or big endian
+  y_state->endian = determine_endianness(y_state->offsets);
+
+  // check the md5 hash matches
   check_rotor_offsets_match(y_state);
 
   // validate that the cipher algorithm is working properly
@@ -886,12 +887,12 @@ int main(int argc, char** argv) {
 	  check[i] = i;
 	}
 	memcpy(orig,check,65536);
-    encipher(f_ring,y_state->offsets,0,check,0,65536);
+    encipher(f_ring,y_state->offsets,0,check,0,65536,y_state->endian);
 	if (!memcmp(orig,check,65536)) {
       fprintf(stderr,"encipher algorithm broken\n");
 	  exit(1);
 	}
-    decipher(r_ring,y_state->offsets,0,check,0,65536);
+    decipher(r_ring,y_state->offsets,0,check,0,65536,y_state->endian);
 	if (memcmp(orig,check,65536)) {
       fprintf(stderr,"decipher algorithm broken\n");
 	  exit(1);

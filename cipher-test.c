@@ -33,14 +33,16 @@ void check_cipher_accuracy()
   offsets[6] = 0x17;
   offsets[7] = 0x17;
 
-  encipher(f_ring,offsets,397312,check,0,65536);
+  int endian = determine_endianness(offsets);
+
+  encipher(f_ring,offsets,397312,check,0,65536,endian);
   if (!memcmp(orig,check,65536)) {
     fprintf(stderr,"encipher algorithm broken\n");
     exit(1);
   }
 
-  decipher(r_ring,offsets,397312,check,0,61440);
-  decipher(r_ring,offsets,458752,check,61440,4096);
+  decipher(r_ring,offsets,397312,check,0,61440,endian);
+  decipher(r_ring,offsets,458752,check,61440,4096,endian);
 
   if (memcmp(orig,check,65536)) {
     fprintf(stderr,"decipher algorithm broken\n");
@@ -69,7 +71,9 @@ void check_cipher_histogram() {
     offsets[i] = random();
   }
 
-  encipher(f_ring,offsets,0,check,0,65536);
+  int endian = determine_endianness(offsets);
+
+  encipher(f_ring,offsets,0,check,0,65536,endian);
 
   unsigned long histo[256];
   memset(histo,0,sizeof(histo));
@@ -92,6 +96,8 @@ void check_cipher_period() {
   unsigned char offsets[8];
   memset(offsets,0,8);
 
+  int endian = determine_endianness(offsets);
+
   unsigned char f_ring[256];
   unsigned char r_ring[256];
   generate_random_rotor(f_ring,r_ring);
@@ -101,14 +107,14 @@ void check_cipher_period() {
 
   unsigned char check[1000000];
   memset(check,'a',sizeof(check));
-  encipher(f_ring,offsets,0,check,0,sizeof(check));
+  encipher(f_ring,offsets,0,check,0,sizeof(check),endian);
 
   unsigned int periods = 0;
   unsigned char verify[1000000];
   unsigned int n=16;
   for(unsigned long ofs=0; ofs<8589934592L; ofs+=1000000) {
     memset(verify,'a',sizeof(verify));
-    encipher(f_ring,offsets,ofs,verify,0,sizeof(verify));
+    encipher(f_ring,offsets,ofs,verify,0,sizeof(verify),endian);
     for(unsigned int i=n; i<sizeof(verify); i++) {
       int l=0;
       for(unsigned int j=0; j<1024 && (i+j)<sizeof(verify); j++) {
@@ -120,7 +126,7 @@ void check_cipher_period() {
         periods++;
       }
     }
-    decipher(r_ring,offsets,ofs,verify,0,sizeof(verify));
+    decipher(r_ring,offsets,ofs,verify,0,sizeof(verify),endian);
     if (memcmp(verify,initial,1000000)) {
       fprintf(stderr,"decipher algorithm broken on long file at %lu\n",ofs);
       exit(1);
@@ -139,6 +145,8 @@ void check_encipher_speed() {
   unsigned char offsets[8];
   memset(offsets,0,8);
 
+  int endian = determine_endianness(offsets);
+
   unsigned char f_ring[256];
   unsigned char r_ring[256];
   generate_random_rotor(f_ring,r_ring);
@@ -152,7 +160,7 @@ void check_encipher_speed() {
   struct timeval stop, start;
   gettimeofday(&start, NULL);
   for(int i=0; i<1024; i++) {
-    encipher(f_ring,offsets,0,check,0,sizeof(check));
+    encipher(f_ring,offsets,0,check,0,sizeof(check),endian);
   }
   gettimeofday(&stop, NULL);
   unsigned long elapsed_usec = (stop.tv_sec - start.tv_sec)*1000000L + (stop.tv_usec - start.tv_usec);
@@ -171,6 +179,8 @@ void check_decipher_speed() {
   unsigned char offsets[8];
   memset(offsets,0,8);
 
+  int endian = determine_endianness(offsets);
+
   unsigned char f_ring[256];
   unsigned char r_ring[256];
   generate_random_rotor(f_ring,r_ring);
@@ -184,7 +194,7 @@ void check_decipher_speed() {
   struct timeval stop, start;
   gettimeofday(&start, NULL);
   for(int i=0; i<1024; i++) {
-    decipher(f_ring,offsets,0,check,0,sizeof(check));
+    decipher(f_ring,offsets,0,check,0,sizeof(check),endian);
   }
   gettimeofday(&stop, NULL);
   unsigned long elapsed_usec = (stop.tv_sec - start.tv_sec)*1000000L + (stop.tv_usec - start.tv_usec);

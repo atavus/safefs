@@ -8,6 +8,7 @@ struct y_state {
   btnode*       list;
   char          rootdir[PATH_MAX];
   FILE*         logfile;
+  int           endian; // 1 = little endian , 0 = big endian
   unsigned char offsets[8];
   unsigned char safe_digest[16];
   unsigned char rotor_digest[16];
