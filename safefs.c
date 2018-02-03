@@ -367,7 +367,8 @@ int y_chown(const char *path, uid_t uid, gid_t gid) {
   int rc = 0;
   char fpath[PATH_MAX];
   resolve(path,fpath);
-  rc = chown(fpath,uid,gid);
+  if (uid!=0 || gid!=0)
+    rc = chown(fpath,uid,gid);
   if (rc<0) rc = logerr("y_chown","chown path=%s uid=%d gid=%d",path,uid,gid);
   loginfo("y_chown","path=%s uid=%d gid=%d rc=%d",path,uid,gid,rc);
   return rc; 
@@ -472,12 +473,12 @@ int y_open(const char *path, struct fuse_file_info *info) {
   memset(rotor_digest,0,16);
   memset(f_ring,0,256);
   memset(r_ring,0,256);
-  loginfo("y_open","path=%s flags=%d rc=%d",path,info->flags,rc);
+  loginfo("y_open","fh=%d path=%s flags=%d rc=%d",info->fh,path,info->flags,rc);
   return rc; 
 }
 
 int y_read(const char *path, char *data, size_t size, off_t ofs, struct fuse_file_info *info) {
-  logdebug("y_read","path=%s size=%d ofs=%d",path,size,ofs);
+  logdebug("y_read","fh=%d path=%s size=%d ofs=%d",info->fh,path,size,ofs);
   int rc = 0;
   char fpath[PATH_MAX];
   resolve(path,fpath);
@@ -491,7 +492,7 @@ int y_read(const char *path, char *data, size_t size, off_t ofs, struct fuse_fil
   // read from the file skipping the first 260 bytes
   rc = pread(info->fh,data,size,ofs+260);
   if (rc<0) { 
-    rc = logerr("y_read","pread path=%s",path);
+    rc = logerr("y_read","pread fh=%d ofs=%d size=%d path=%s",info->fh,ofs,size,path);
   } else { 
     if (trace_on) {
       logdata("y_read","forward rotors",16,0,node->f_ring,256);
@@ -504,12 +505,12 @@ int y_read(const char *path, char *data, size_t size, off_t ofs, struct fuse_fil
       logdata("y_read","plain text",64,ofs,(unsigned char*)data,rc);
     }
   }
-  loginfo("y_read","path=%s size=%d ofs=%d rc=%d",path,size,ofs,rc);
+  loginfo("y_read","fh=%d path=%s size=%d ofs=%d rc=%d",info->fh,path,size,ofs,rc);
   return rc; 
 }
 
 int y_write(const char *path, const char *data, size_t size, off_t ofs, struct fuse_file_info *info) { 
-  logdebug("y_write","path=%s offset=%d size=%d",path,ofs,size);
+  logdebug("y_write","fh=%d path=%s offset=%d size=%d",info->fh,path,ofs,size);
   int rc = 0;
   char fpath[PATH_MAX];
   resolve(path,fpath);
@@ -536,10 +537,10 @@ int y_write(const char *path, const char *data, size_t size, off_t ofs, struct f
   }
   rc = pwrite(info->fh,buf,size,ofs+260);
   if (rc<0) {
-    rc = logerr("y_write","pwrite path=%s",path);
+    rc = logerr("y_write","pwrite fh=%d ofs=%d size=%d path=%s",info->fh,ofs,size,path);
   }
   free(buf);
-  loginfo("y_write","path=%s offset=%d size=%d rc=%d",path,ofs,size,rc);
+  loginfo("y_write","fh=%d path=%s offset=%d size=%d rc=%d",info->fh,path,ofs,size,rc);
   return rc; 
 }
 
@@ -557,14 +558,14 @@ int y_statfs(const char *path, struct statvfs *stat) {
 //int y_flush(const char *path, struct fuse_file_info *info) { }
 
 int y_release(const char *path, struct fuse_file_info *info) { 
-  logdebug("y_release","path=%s",path);
+  logdebug("y_release","close fh=%d path=%s",info->fh,path);
   int rc = 0;
   rc = close(info->fh);
-  if (rc<0) rc = logerr("y_release","close path=%s",path);
+  if (rc<0) rc = logerr("y_release","close fh=%d path=%s",info->fh,path);
   logdebug("y_release","%d %s",info->fh,path);
   delLink(info->fh,&Y_STATE->list);
   info->fh = 0;
-  loginfo("y_release","path=%s rc=%d",path,rc);
+  loginfo("y_release","fh=%d path=%s rc=%d",info->fh,path,rc);
   return rc; 
 }
 
