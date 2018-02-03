@@ -717,7 +717,7 @@ int y_create(const char *path, mode_t mode, struct fuse_file_info *info) {
   int fd;
   char fpath[PATH_MAX];
   resolve(path,fpath);
-  fd = open(fpath, O_CREAT | O_TRUNC | O_WRONLY, mode);
+  fd = open(fpath, O_CREAT | O_TRUNC | O_RDWR, mode);
   if (fd<0) {
     rc = logerr("y_create","creat path=%s mode=%d",path,mode);
   } else { 
