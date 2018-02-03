@@ -7,7 +7,7 @@
 void check_cipher_accuracy()
 {
 
-  fprintf(stderr,"Checking cipher accuracy\n");
+  fprintf(stderr,"\nChecking cipher accuracy\n");
 
   srandomdev();
 
@@ -55,7 +55,7 @@ void check_cipher_accuracy()
 
 void check_cipher_histogram() {
 
-  fprintf(stderr,"Checking cipher histogram\n");
+  fprintf(stderr,"\nChecking cipher histogram\n");
 
   srandomdev();
 
@@ -89,9 +89,64 @@ void check_cipher_histogram() {
 
 }
 
+void check_cipher_distribution() {
+
+  fprintf(stderr,"\nChecking cipher distribution\n");
+
+  srandomdev();
+
+  unsigned char f_ring[256];
+  unsigned char r_ring[256];
+  generate_random_rotor(f_ring,r_ring);
+
+
+  unsigned char offsets[8];
+  for(int i=0; i<8; i++) {
+    offsets[i] = random();
+  }
+
+  int endian = determine_endianness(offsets);
+
+  unsigned char check[2][256];
+  for(int pos=0; pos<2; pos++) {
+    for(int val=0; val<256; val++) {
+      check[pos][val] = val;
+      encipher(f_ring,offsets,pos,&check[pos][val],0,1,endian,3);
+    }
+    fprintf(stderr,"   ");
+    for(int i=0; i<16; i++) {
+      fprintf(stderr,"%02x ",i);
+      if ((i%16)==15) fprintf(stderr,"\n");
+    }
+    for(int i=0; i<256; i++) {
+      if ((i%16)==0) fprintf(stderr,"%02x ",i);
+      fprintf(stderr,"%02x ",check[pos][i]);
+      if ((i%16)==15) fprintf(stderr,"\n");
+    }
+    fprintf(stderr,"\n");
+  }
+
+  int t=0;
+  for(int i=0; i<256; i++) {
+    for(int j=0; j<256; j++) {
+      int l=0;
+      for(int k=0; k<256; k++) {
+        if (check[0][(i+k)%256]!=check[1][(j+k)%256]) break;
+        l++;
+      }
+      if (l>2) {
+        fprintf(stderr,"Sequence repeated at %02x and %02x for %d\n",i,j,l);
+        t++;
+      }
+    }
+  }
+  fprintf(stderr,"%d sequences repeated\n",t);
+
+}
+
 void check_cipher_period() {
 
-  fprintf(stderr,"Checking cipher period\n");
+  fprintf(stderr,"\nChecking cipher period\n");
 
   srandomdev();
 
@@ -135,7 +190,7 @@ void check_cipher_period() {
 
 void check_encipher_speed() {
 
-  fprintf(stderr,"Checking encipher speed\n");
+  fprintf(stderr,"\nChecking encipher speed\n");
 
   srandomdev();
 
@@ -175,7 +230,7 @@ void check_encipher_speed() {
 
 void check_decipher_speed() {
 
-  fprintf(stderr,"Checking decipher speed\n");
+  fprintf(stderr,"\nChecking decipher speed\n");
 
   srandomdev();
 
@@ -216,6 +271,7 @@ void check_decipher_speed() {
 int main(int argc, char** argv) {
   check_cipher_accuracy();
   check_cipher_histogram();
+  check_cipher_distribution();
   check_encipher_speed();
   check_decipher_speed();
   check_cipher_period();
