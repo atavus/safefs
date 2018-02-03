@@ -63,92 +63,120 @@ void derive_reverse_rotor(unsigned char f_ring[256], unsigned char r_ring[256]) 
 }
 
 void encipher(unsigned char f_ring[256], unsigned char offsets[8], uint64_t pos, unsigned char* data, uint64_t ofs, uint64_t len, int endian, int rounds) {
-  uint64_t ptr;
-  int i;
+  uint64_t ptr, rlen;
+  int i,j;
   unsigned char k;
   union {
     unsigned char ix[8];
     uint64_t position;
   } advance;
-  memcpy(advance.ix,offsets,8);
-  advance.position += pos;
-  if (endian) {
-    // little endian
+  if (endian==0) {
+    // big endian
     switch (rounds) {
-      case 2:
-        for(ptr=ofs; len>0; ptr++) {
-          len--;
-          k = data[ptr];
-          for(i=0;i<2;i++) {
-            k += advance.ix[i];
-            k = f_ring[k];
+      case 3:
+        for(j=0;j<2;j++) {
+          memcpy(advance.ix,offsets,8);
+          advance.position += pos;
+          rlen=len;
+          for(ptr=ofs; rlen>0; ptr++) {
+            rlen--;
+            k = data[ptr];
+            for(i=0;i<3;i++) {
+              k += advance.ix[i];
+              k = f_ring[k];
+            }
+            data[ptr] = k;
+            advance.position++;
           }
-          data[ptr] = k;
-          advance.position++;
         }
         break;
-      case 4:
-        for(ptr=ofs; len>0; ptr++) {
-          len--;
-          k = data[ptr];
-          for(i=0;i<4;i++) {
-            k += advance.ix[i];
-            k = f_ring[k];
+      case 5:
+        for(j=0;j<2;j++) {
+          memcpy(advance.ix,offsets,8);
+          advance.position += pos;
+          rlen=len;
+          for(ptr=ofs; rlen>0; ptr++) {
+            rlen--;
+            k = data[ptr];
+            for(i=0;i<5;i++) {
+              k += advance.ix[i];
+              k = f_ring[k];
+            }
+            data[ptr] = k;
+            advance.position++;
           }
-          data[ptr] = k;
-          advance.position++;
         }
         break;
       case 8:
-        for(ptr=ofs; len>0; ptr++) {
-          len--;
-          k = data[ptr];
-          for(i=0;i<8;i++) {
-            k += advance.ix[i];
-            k = f_ring[k];
+        for(j=0;j<2;j++) {
+          memcpy(advance.ix,offsets,8);
+          advance.position += pos;
+          rlen=len;
+          for(ptr=ofs; rlen>0; ptr++) {
+            rlen--;
+            k = data[ptr];
+            for(i=0;i<8;i++) {
+              k += advance.ix[i];
+              k = f_ring[k];
+            }
+            data[ptr] = k;
+            advance.position++;
           }
-          data[ptr] = k;
-          advance.position++;
         }
         break;
     }
   } else {
-    // big endian
+    // little endian
     switch (rounds) {
-      case 2:
-        for(ptr=ofs; len>0; ptr++) {
-          len--;
-          k = data[ptr];
-          for(i=1;i>=0;i--) {
-            k += advance.ix[i];
-            k = f_ring[k];
+      case 3:
+        for(j=0;j<2;j++) {
+          memcpy(advance.ix,offsets,8);
+          advance.position += pos;
+          rlen=len;
+          for(ptr=ofs; rlen>0; ptr++) {
+            rlen--;
+            k = data[ptr];
+            for(i=2;i>=0;i--) {
+              k += advance.ix[i];
+              k = f_ring[k];
+            }
+            data[ptr] = k;
+            advance.position++;
           }
-          data[ptr] = k;
-          advance.position++;
         }
         break;
-      case 4:
-        for(ptr=ofs; len>0; ptr++) {
-          len--;
-          k = data[ptr];
-          for(i=3;i>=0;i--) {
-            k += advance.ix[i];
-            k = f_ring[k];
+      case 5:
+        for(j=0;j<2;j++) {
+          memcpy(advance.ix,offsets,8);
+          advance.position += pos;
+          rlen=len;
+          for(ptr=ofs; rlen>0; ptr++) {
+            rlen--;
+            k = data[ptr];
+            for(i=4;i>=0;i--) {
+              k += advance.ix[i];
+              k = f_ring[k];
+            }
+            data[ptr] = k;
+            advance.position++;
           }
-          data[ptr] = k;
-          advance.position++;
         }
         break;
       case 8:
-        for(ptr=ofs; len>0; ptr++) {
-          len--;
-          k = data[ptr];
-          for(i=7;i>=0;i--) {
-            k += advance.ix[i];
-            k = f_ring[k];
+        for(j=0;j<2;j++) {
+          memcpy(advance.ix,offsets,8);
+          advance.position += pos;
+          rlen=len;
+          for(ptr=ofs; rlen>0; ptr++) {
+            rlen--;
+            k = data[ptr];
+            for(i=7;i>=0;i--) {
+              k += advance.ix[i];
+              k = f_ring[k];
+            }
+            data[ptr] = k;
+            advance.position++;
           }
-          data[ptr] = k;
-          advance.position++;
         }
         break;
     }
@@ -156,92 +184,120 @@ void encipher(unsigned char f_ring[256], unsigned char offsets[8], uint64_t pos,
 }
 
 void decipher(unsigned char r_ring[256], unsigned char offsets[8], uint64_t pos, unsigned char* data, uint64_t ofs, uint64_t len, int endian, int rounds) {
-  uint64_t ptr;
-  int i;
+  uint64_t ptr, rlen;
+  int i,j;
   unsigned char k;
   union {
     unsigned char ix[8];
     uint64_t position;
   } advance;
-  memcpy(advance.ix,offsets,8);
-  advance.position += pos;
-  if (endian) {
-    // little endian
+  if (endian==0) {
+    // big endian
     switch (rounds) {
-      case 2:
-        for(ptr=ofs; len>0; ptr++) {
-          len--;
-          k = data[ptr];
-          for(i=1;i>=0;i--) {
-            k = r_ring[k];
-            k -= advance.ix[i];
+      case 3:
+        for(j=0;j<2;j++) {
+          memcpy(advance.ix,offsets,8);
+          advance.position += pos;
+          rlen=len;
+          for(ptr=ofs; rlen>0; ptr++) {
+            rlen--;
+            k = data[ptr];
+            for(i=2;i>=0;i--) {
+              k = r_ring[k];
+              k -= advance.ix[i];
+            }
+            data[ptr] = k;
+            advance.position++;
           }
-          data[ptr] = k;
-          advance.position++;
         }
         break;
-      case 4:
-        for(ptr=ofs; len>0; ptr++) {
-          len--;
-          k = data[ptr];
-          for(i=3;i>=0;i--) {
-            k = r_ring[k];
-            k -= advance.ix[i];
+      case 5:
+        for(j=0;j<2;j++) {
+          memcpy(advance.ix,offsets,8);
+          advance.position += pos;
+          rlen=len;
+          for(ptr=ofs; rlen>0; ptr++) {
+            rlen--;
+            k = data[ptr];
+            for(i=4;i>=0;i--) {
+              k = r_ring[k];
+              k -= advance.ix[i];
+            }
+            data[ptr] = k;
+            advance.position++;
           }
-          data[ptr] = k;
-          advance.position++;
         }
         break;
       case 8:
-        for(ptr=ofs; len>0; ptr++) {
-          len--;
-          k = data[ptr];
-          for(i=7;i>=0;i--) {
-            k = r_ring[k];
-            k -= advance.ix[i];
+        for(j=0;j<2;j++) {
+          memcpy(advance.ix,offsets,8);
+          advance.position += pos;
+          rlen=len;
+          for(ptr=ofs; rlen>0; ptr++) {
+            rlen--;
+            k = data[ptr];
+            for(i=7;i>=0;i--) {
+              k = r_ring[k];
+              k -= advance.ix[i];
+            }
+            data[ptr] = k;
+            advance.position++;
           }
-          data[ptr] = k;
-          advance.position++;
         }
         break;
     }
   } else {
-    // big endian
+    // little endian
     switch (rounds) {
-      case 2:
-        for(ptr=ofs; len>0; ptr++) {
-          len--;
-          k = data[ptr];
-          for(i=0;i<2;i++) {
-            k = r_ring[k];
-            k -= advance.ix[i];
+      case 3:
+        for(j=0;j<2;j++) {
+          memcpy(advance.ix,offsets,8);
+          advance.position += pos;
+          rlen=len;
+          for(ptr=ofs; rlen>0; ptr++) {
+            rlen--;
+            k = data[ptr];
+            for(i=0;i<3;i++) {
+              k = r_ring[k];
+              k -= advance.ix[i];
+            }
+            data[ptr] = k;
+            advance.position++;
           }
-          data[ptr] = k;
-          advance.position++;
         }
         break;
-      case 4:
-        for(ptr=ofs; len>0; ptr++) {
-          len--;
-          k = data[ptr];
-          for(i=0;i<4;i++) {
-            k = r_ring[k];
-            k -= advance.ix[i];
+      case 5:
+        for(j=0;j<2;j++) {
+          memcpy(advance.ix,offsets,8);
+          advance.position += pos;
+          rlen=len;
+          for(ptr=ofs; rlen>0; ptr++) {
+            rlen--;
+            k = data[ptr];
+            for(i=0;i<5;i++) {
+              k = r_ring[k];
+              k -= advance.ix[i];
+            }
+            data[ptr] = k;
+            advance.position++;
           }
-          data[ptr] = k;
-          advance.position++;
         }
         break;
       case 8:
-        for(ptr=ofs; len>0; ptr++) {
-          len--;
-          k = data[ptr];
-          for(i=0;i<8;i++) {
-            k = r_ring[k];
-            k -= advance.ix[i];
+        for(j=0;j<2;j++) {
+          memcpy(advance.ix,offsets,8);
+          advance.position += pos;
+          rlen=len;
+          for(ptr=ofs; rlen>0; ptr++) {
+            rlen--;
+            k = data[ptr];
+            for(i=0;i<8;i++) {
+              k = r_ring[k];
+              k -= advance.ix[i];
+            }
+            data[ptr] = k;
+            advance.position++;
           }
-          data[ptr] = k;
-          advance.position++;
         }
         break;
     }

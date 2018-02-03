@@ -98,10 +98,10 @@ void determine_rotor_offsets(struct y_state *y_state, char *pwd) {
   memset(y_state->offsets,0,8);
   for(int i=0; i<8; i++) {
     y_state->offsets[i] = 0;
-    for(int j=0; j<3; j++) {
+    for(int j=0; j<6; j++) {
       y_state->offsets[i] <<= 1;
       y_state->offsets[i] += (i+j);
-      y_state->offsets[i] += pwd[i+j];
+      y_state->offsets[i] += pwd[(i+j)%10];
     }
   }
 
@@ -791,7 +791,7 @@ int main(int argc, char** argv) {
     fprintf(stderr,"Out of memory\n");
     exit(1);
   }
-  y_state->rounds = 8;
+  y_state->rounds = 5;
 
   // interpret the command line options
   char  options[1024];
@@ -803,8 +803,8 @@ int main(int argc, char** argv) {
   memset(mount,0,sizeof(mount));
   memset(logfile,0,sizeof(logfile));
   for(int i=1; i<argc; i++) {
-    if (!strcmp("-2",argv[i])) { y_state->rounds = 2; }
-    else if (!strcmp("-4",argv[i])) { y_state->rounds = 4; }
+    if (!strcmp("-3",argv[i])) { y_state->rounds = 3; }
+    else if (!strcmp("-5",argv[i])) { y_state->rounds = 5; }
     else if (!strcmp("-8",argv[i])) { y_state->rounds = 8; }
     if (!strcmp("-trace",argv[i])) { trace_on = 1; debug_on = 1; info_on = 1; }
     else if (!strcmp("-debug",argv[i])) { debug_on = 1; info_on = 1; }
@@ -816,7 +816,7 @@ int main(int argc, char** argv) {
     else if (strlen(argv[i])>2 && !(memcmp("-l",argv[i],2))) strcpy(logfile,&argv[i][2]);
   }
   if (strlen(storage)==0 || strlen(mount)==0) {
-    fprintf(stderr,"Syntax: safefs [-trace|-debug|-info] [-dump-ascii] [-2|-4|-8] [-o<options>] [-l<log-file-path>] -s<file-system-storage-path> -m<mount-point>\n");
+    fprintf(stderr,"Syntax: safefs [-trace|-debug|-info] [-dump-ascii] [-3|-5|-8] [-o<options>] [-l<log-file-path>] -s<file-system-storage-path> -m<mount-point>\n");
     exit(1);
   }
   if (strlen(options)==0) {

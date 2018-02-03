@@ -34,6 +34,8 @@ void check_cipher_accuracy()
   offsets[7] = 0x17;
 
   int endian = determine_endianness(offsets);
+  if (endian==0) fprintf(stderr,"Big endian\n");
+  else fprintf(stderr,"Little endian\n");
 
   encipher(f_ring,offsets,397312,check,0,65536,endian,8);
   if (!memcmp(orig,check,65536)) {
@@ -107,29 +109,24 @@ void check_cipher_period() {
 
   unsigned char check[1000000];
   memset(check,'a',sizeof(check));
-  encipher(f_ring,offsets,0,check,0,sizeof(check),endian,8);
+  encipher(f_ring,offsets,0,check,0,sizeof(check),endian,5);
 
   unsigned int periods = 0;
   unsigned char verify[1000000];
-  unsigned int n=16;
+  unsigned int n=1;
   for(unsigned long ofs=0; ofs<8589934592L; ofs+=1000000) {
     memset(verify,'a',sizeof(verify));
-    encipher(f_ring,offsets,ofs,verify,0,sizeof(verify),endian,8);
+    encipher(f_ring,offsets,ofs,verify,0,sizeof(verify),endian,5);
     for(unsigned int i=n; i<sizeof(verify); i++) {
       int l=0;
-      for(unsigned int j=0; j<1024 && (i+j)<sizeof(verify); j++) {
+      for(unsigned int j=0; j<65536 && (i+j)<sizeof(verify); j++) {
         if (check[j]!=verify[i+j]) break;
         l=j+1;
       }
-      if (l>15) {
-        fprintf(stderr,"Period %lu of length %d\n",(ofs+i),l);
+      if (l>255) {
+        fprintf(stderr,"Period %lu [%lx] of length %d\n",(ofs+i),(ofs+i),l);
         periods++;
       }
-    }
-    decipher(r_ring,offsets,ofs,verify,0,sizeof(verify),endian,8);
-    if (memcmp(verify,initial,1000000)) {
-      fprintf(stderr,"decipher algorithm broken on long file at %lu\n",ofs);
-      exit(1);
     }
     n=0;
   }
@@ -157,17 +154,21 @@ void check_encipher_speed() {
   unsigned char check[1000000];
   memset(check,'a',sizeof(check));
 
-  for(int rounds=2; rounds<=8; rounds*=2) {
+  int rounds[3];
+  rounds[0] = 3;
+  rounds[1] = 5;
+  rounds[2] = 8;
+  for(int r=0; r<3; r++) {
     struct timeval stop, start;
     gettimeofday(&start, NULL);
     for(int i=0; i<1024; i++) {
-      encipher(f_ring,offsets,0,check,0,sizeof(check),endian,rounds);
+      encipher(f_ring,offsets,0,check,0,sizeof(check),endian,rounds[r]);
     }
     gettimeofday(&stop, NULL);
     unsigned long elapsed_usec = (stop.tv_sec - start.tv_sec)*1000000L + (stop.tv_usec - start.tv_usec);
     unsigned long elapsed_sec = elapsed_usec / 1000000L;
     unsigned long mbytes_per_sec = 1000000L * 1024L / elapsed_sec / 1024L / 1024L;
-    fprintf(stderr,"%lu Mbytes per second for %d rounds\n",mbytes_per_sec,rounds);
+    fprintf(stderr,"%lu Mbytes per second for %d rounds\n",mbytes_per_sec,rounds[r]);
   }
 
 }
@@ -193,17 +194,21 @@ void check_decipher_speed() {
   unsigned char check[1000000];
   memset(check,'a',sizeof(check));
 
-  for(int rounds=2; rounds<=8; rounds*=2) {
+  int rounds[3];
+  rounds[0] = 3;
+  rounds[1] = 5;
+  rounds[2] = 8;
+  for(int r=0; r<3; r++) {
     struct timeval stop, start;
     gettimeofday(&start, NULL);
     for(int i=0; i<1024; i++) {
-      decipher(f_ring,offsets,0,check,0,sizeof(check),endian,rounds);
+      decipher(f_ring,offsets,0,check,0,sizeof(check),endian,rounds[r]);
     }
     gettimeofday(&stop, NULL);
     unsigned long elapsed_usec = (stop.tv_sec - start.tv_sec)*1000000L + (stop.tv_usec - start.tv_usec);
     unsigned long elapsed_sec = elapsed_usec / 1000000L;
     unsigned long mbytes_per_sec = 1000000L * 1024L / elapsed_sec / 1024L / 1024L;
-    fprintf(stderr,"%lu Mbytes per second for %d rounds\n",mbytes_per_sec,rounds);
+    fprintf(stderr,"%lu Mbytes per second for %d rounds\n",mbytes_per_sec,rounds[r]);
   }
 
 }
