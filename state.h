@@ -12,7 +12,7 @@ struct y_state {
   int           rounds; // 1 = least secure , 8 = most secure
   unsigned char offsets[8];
   unsigned char safe_digest[16];
-  unsigned char rotor_digest[16];
+  //unsigned char rotor_digest[16];
 };
 
 #define Y_STATE ((struct y_state *) fuse_get_context()->private_data)

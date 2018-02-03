@@ -48,7 +48,7 @@ int check_file_write(const char* store, const char* access) {
       return 1;
     }
     if (stat.st_size!=5) {
-      fprintf(stderr,"File size is incorrect\n");
+      fprintf(stderr,"File size is incorrect after writing. %lld\n",stat.st_size);
       close(fd);
       return 1;
     }
@@ -109,7 +109,7 @@ int check_file_truncate(const char* store, const char* access) {
       return 1;
     }
     if (stat.st_size!=0) {
-      fprintf(stderr,"File size is incorrect\n");
+      fprintf(stderr,"File size is incorrect after truncating. %lld\n",stat.st_size);
       close(fd);
       return 1;
     }
@@ -281,7 +281,7 @@ int check_rainbow_test(const char* store, const char* access) {
     return 1;
   } else {
     int rc = pread(fd,x,1024,0);
-    if (rc!=768) {
+    if (rc!=772) {
       perror("Failed to read the correct number of bytes");
       close(fd);
       return 1;
@@ -300,7 +300,7 @@ int check_rainbow_test(const char* store, const char* access) {
     return 1;
   } else {
     int rc = pread(fd,x,1024,0);
-    if (rc!=768) {
+    if (rc!=772) {
       perror("Failed to read the correct number of bytes");
       close(fd);
       return 1;
@@ -308,14 +308,20 @@ int check_rainbow_test(const char* store, const char* access) {
     close(fd);
   }
 
-  // check that the first 256 bytes are different
-  if (!memcmp(x,y,256)) {
+  // check that the salt bytes are different
+  if (!memcmp(x,y,4)) {
+    fprintf(stderr,"File salt are identical\n");
+    return 1;
+  }
+
+  // check that the rotor bytes are different
+  if (!memcmp(&x[4],&y[4],256)) {
     fprintf(stderr,"File rotor settings are identical\n");
     return 1;
   }
 
   // check that the encrypted values are different
-  if (!memcmp(&x[256],&y[256],512)) {
+  if (!memcmp(&x[260],&y[260],512)) {
     fprintf(stderr,"File encryption values are identical\n");
     return 1;
   }

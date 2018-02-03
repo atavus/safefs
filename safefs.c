@@ -30,10 +30,11 @@
  * = 1.8e19 ring offset combinations possible
  *
  * Each file has the following format:
+ * - 4 byte random salt (unencrypted) used for file digest
  * - 256 byte random rotor settings (encrypted)
- * - file data encrypted using random rotor settings and ring offsets
+ * - file data encrypted using random rotor settings and rotor offsets
  * = each files encrypted data is different even if the unencrypted data is the same
- * = each file is just 256 bytes larger than the original file size
+ * = each file is just 260 bytes larger than the original file size
  * 
  */
 
@@ -57,27 +58,64 @@
 #include "state.h"
 #include "md5.h"
 
-int write_rotor(const char* cmd, const char* path, btnode* node, struct fuse_file_info* info) {
+void calculate_rotor_digest_from_salt(unsigned char salt[4], unsigned char* rotor_digest, struct y_state *y_state) {
+  MD5_CTX context;
+  MD5Init (&context);
+  MD5Update (&context, y_state->offsets, 8);
+  MD5Update (&context, y_state->safe_digest, 16);
+  MD5Update (&context, y_state->offsets, 8);
+  MD5Update (&context, salt, 4);
+  MD5Final (rotor_digest, &context);
+}
+
+// calculate the MD5 hash to use to encode the rotors
+void calculate_salt_and_rotor_digest(unsigned char salt[4], unsigned char* rotor_digest, struct y_state *y_state) {
+
+  // calculate the random salt
+  for(int i=0; i<4; i++) {
+    salt[i] = random();
+  }
+
+  // calculate the digest to use for encoding the rotor
+  calculate_rotor_digest_from_salt(salt,rotor_digest,y_state);
+
+}
+
+int calculate_and_write_rotor_to_fh(unsigned char* f_ring, unsigned char* r_ring, unsigned char salt[4], unsigned char rotor_digest[16], int fh, const char* cmd, const char* path, struct y_state *y_state) {
   int rc = 0;
-  generate_random_rotor(node->f_ring,node->r_ring);
+  calculate_salt_and_rotor_digest(salt,rotor_digest,y_state);
+  generate_random_rotor(f_ring,r_ring);
   unsigned char out[256];
-  memcpy(out,node->f_ring,256);
+  memcpy(out,f_ring,256);
   logdata(cmd,"rotor plain text",16,0,out,256);
-  encode_rotor(out,Y_STATE->rotor_digest);
+  encode_rotor(out,rotor_digest);
   logdata(cmd,"rotor cipher text",16,0,out,256);
-  rc = pwrite(info->fh,out,256,0);
+  rc = pwrite(fh,salt,4,0);
+  if (rc<0) {
+    rc = logerr(cmd,"pwrite failed for write salt: %s",path);
+    return rc;
+  } else if (rc!=4) {
+    logerr(cmd,"pwrite failed for write salt: %s",path);
+    rc = -EIO;
+    return rc;
+  }
+  rc = pwrite(fh,out,256,4);
   memset(out,0,256);
   if (rc<0) {
-    rc = logerr(cmd,"pwrite failed for write offsets: %s",path);
+    rc = logerr(cmd,"pwrite failed for write rotor: %s",path);
     return rc;
   } else if (rc!=256) {
-    logerr(cmd,"pwrite failed for write offsets: %s",path);
+    logerr(cmd,"pwrite failed for write rotor: %s",path);
     rc = -EIO;
     return rc;
   } else {
     rc = 0;
   }
   return rc;
+}
+
+int calculate_and_write_rotor(const char* cmd, const char* path, btnode* node, struct fuse_file_info* info, struct y_state *y_state) {
+  return calculate_and_write_rotor_to_fh(node->f_ring, node->r_ring, node->salt, node->rotor_digest, info->fh, cmd, path, y_state);
 }
 
 int is_ds_store(const char* path) {
@@ -115,16 +153,6 @@ void determine_rotor_offsets(struct y_state *y_state, char *pwd) {
     MD5Final (y_state->safe_digest, &context);
   }
 
-  // calculate the MD5 hash to use to encode the rotors
-  {
-    MD5_CTX context;
-    MD5Init (&context);
-    MD5Update (&context, y_state->offsets, 8);
-    MD5Update (&context, y_state->safe_digest, 16);
-    MD5Update (&context, y_state->offsets, 8);
-    MD5Final (y_state->rotor_digest, &context);
-  }
-
 }
 
 void check_rotor_offsets_match(struct y_state *y_state) {
@@ -146,22 +174,21 @@ void check_rotor_offsets_match(struct y_state *y_state) {
       // write the rotor settings for the file
       unsigned char f_ring[256];
       unsigned char r_ring[256];
-      generate_random_rotor(f_ring,r_ring);
-      unsigned char out[256];
-      memcpy(out,f_ring,256);
-      encode_rotor(out,y_state->rotor_digest);
-      int rc = pwrite(fd,out,256,0);
-      if (rc!=256) {
-        perror("Failed to write .safefs");
+      unsigned char salt[4];
+      unsigned char rotor_digest[16];
+      int rc = calculate_and_write_rotor_to_fh(f_ring, r_ring, salt, rotor_digest, fd, "initialise", ".safefs", y_state);
+      if (rc!=0) {
+        perror("Failed to write rotor to .safefs");
         close(fd);
         exit(1);
       }
       // write the digest ciphertext to the file
+      unsigned char out[16];
       memcpy(out,y_state->safe_digest,16);
       encipher(f_ring,y_state->offsets,0,out,0,16,y_state->endian,y_state->rounds);
-      rc = pwrite(fd,out,16,256);
+      rc = pwrite(fd,out,16,260);
       if (rc!=16) {
-        perror("Failed to write .safefs");
+        perror("Failed to write digest to .safefs");
         close(fd);
         exit(1);
       }
@@ -169,21 +196,30 @@ void check_rotor_offsets_match(struct y_state *y_state) {
     }
   } else {
     // read the rotor settings for the file
+    unsigned char salt[4];
+    unsigned char rotor_digest[16];
     unsigned char f_ring[256];
     unsigned char r_ring[256];
-    int rc = pread(fd,f_ring,256,0);
-    if (rc!=256) {
-      perror("Failed to read .safefs");
+    int rc = pread(fd,salt,4,0);
+    if (rc!=4) {
+      perror("Failed to read salt from .safefs");
       close(fd);
       exit(1);
     }
-    decode_rotor(f_ring,y_state->rotor_digest);
+    calculate_rotor_digest_from_salt(salt,rotor_digest,y_state);
+    rc = pread(fd,f_ring,256,4);
+    if (rc!=256) {
+      perror("Failed to read rotor from .safefs");
+      close(fd);
+      exit(1);
+    }
+    decode_rotor(f_ring,rotor_digest);
     derive_reverse_rotor(f_ring,r_ring);
     // read and decipher the md5 hash stored in the file
     unsigned char out[16];
-    rc = pread(fd,out,16,256);
+    rc = pread(fd,out,16,260);
     if (rc!=16) {
-      perror("Failed to read .safefs");
+      perror("Failed to read digest from .safefs");
       close(fd);
       exit(1);
     }
@@ -210,7 +246,7 @@ int y_getattr(const char *path, struct stat *stat) {
   rc = lstat(fpath,stat);
   if (rc<0) { if (errno!=ENOENT) rc = logerr("y_getattr","stat path=%s",path); else rc = -errno; }
   else { 
-    if (stat->st_size>=256) stat->st_size -= 256; /* hide the first 256 bytes */ 
+    if (stat->st_size>=260) stat->st_size -= 260; /* hide the first 260 bytes */ 
     logdebug("y_getattr","st_size=%lu",stat->st_size);
   }
   loginfo("y_getattr","path=%s rc=%d",path,rc);
@@ -342,8 +378,8 @@ int y_truncate(const char *path, off_t off) {
   int rc = 0;
   char fpath[PATH_MAX];
   resolve(path,fpath);
-  // truncate the file skipping the first 256 bytes
-  rc = truncate(fpath,off+256);
+  // truncate the file skipping the first 260 bytes
+  rc = truncate(fpath,off+260);
   if (rc<0) rc = logerr("y_truncate","truncate path=%s offset=%d",path,off);
   loginfo("y_truncate","path=%s offset=%d rc=%d",path,off,rc);
   return rc; 
@@ -365,6 +401,8 @@ int y_open(const char *path, struct fuse_file_info *info) {
   int rc = 0;
   int fd;
   char fpath[PATH_MAX];
+  unsigned char salt[4];
+  unsigned char rotor_digest[16];
   unsigned char f_ring[256];
   unsigned char r_ring[256];
   int loaded = 0;
@@ -374,16 +412,22 @@ int y_open(const char *path, struct fuse_file_info *info) {
   int flags = info->flags;
   fd = open(fpath,O_RDONLY); 
   if (fd>=0) {
-    rc = pread(fd,f_ring,256,0);
-    if (rc!=256) {
-      rc = logerr("y_open","pread path=%s",path);
+    rc = pread(fd,salt,4,0);
+    if (rc!=4) {
+      rc = logerr("y_open","pread failed to read salt path=%s",path);
     } else {
-      logdata("y_open","rotor cipher text",16,0,f_ring,256);
-      decode_rotor(f_ring,Y_STATE->rotor_digest);
-      logdata("y_open","rotor plain text",16,0,f_ring,256);
-      derive_reverse_rotor(f_ring,r_ring);
-      loaded = 1;
-      rc = 0;
+      calculate_rotor_digest_from_salt(salt,rotor_digest,Y_STATE);
+      rc = pread(fd,f_ring,256,4);
+      if (rc!=256) {
+        rc = logerr("y_open","pread failed to read rotor path=%s",path);
+      } else {
+        logdata("y_open","rotor cipher text",16,0,f_ring,256);
+        decode_rotor(f_ring,rotor_digest);
+        logdata("y_open","rotor plain text",16,0,f_ring,256);
+        derive_reverse_rotor(f_ring,r_ring);
+        loaded = 1;
+        rc = 0;
+      }
     }
     close(fd);
   } else {
@@ -405,23 +449,27 @@ int y_open(const char *path, struct fuse_file_info *info) {
       btnode* node = addLink(fd,&Y_STATE->list); 
       if (!loaded) {
         if ((flags&O_CREAT)==O_CREAT) {
-          rc = write_rotor("y_open",path,node,info);
+          rc = calculate_and_write_rotor("y_open",path,node,info,Y_STATE);
         } else {
           logerr("y_open","failed to load rotor settings path=%s",path);
           rc = -EIO;
         }
       } else {
+        memcpy(node->salt,salt,4);
+        memcpy(node->rotor_digest,rotor_digest,16);
         memcpy(node->f_ring,f_ring,256);
         memcpy(node->r_ring,r_ring,256);
       }
       if (rc==0) {
         if (truncate) {
-          rc = ftruncate(info->fh, 256);
+          rc = ftruncate(info->fh, 260);
           if (rc<0) rc = logerr("y_open","ftruncate path=%s pos=%d",path,0);
         }
       }
     }
   }
+  memset(salt,0,4);
+  memset(rotor_digest,0,16);
   memset(f_ring,0,256);
   memset(r_ring,0,256);
   loginfo("y_open","path=%s flags=%d rc=%d",path,info->flags,rc);
@@ -440,8 +488,8 @@ int y_read(const char *path, char *data, size_t size, off_t ofs, struct fuse_fil
     rc = -EIO;
     return rc;
   }
-  // read from the file skipping the first 256 bytes
-  rc = pread(info->fh,data,size,ofs+256);
+  // read from the file skipping the first 260 bytes
+  rc = pread(info->fh,data,size,ofs+260);
   if (rc<0) { 
     rc = logerr("y_read","pread path=%s",path);
   } else { 
@@ -473,7 +521,7 @@ int y_write(const char *path, const char *data, size_t size, off_t ofs, struct f
     loginfo("y_write","rc=%d",rc);
     return rc;
   }
-  // encipher the plain text and then write to the file skipping the first 256 bytes
+  // encipher the plain text and then write to the file skipping the first 260 bytes
   unsigned char *buf = malloc(size);
   memcpy(buf,data,size);
   if (trace_on) {
@@ -486,7 +534,7 @@ int y_write(const char *path, const char *data, size_t size, off_t ofs, struct f
   if (trace_on) {
     logdata("y_write","cipher text",64,ofs,buf,size);
   }
-  rc = pwrite(info->fh,buf,size,ofs+256);
+  rc = pwrite(info->fh,buf,size,ofs+260);
   if (rc<0) {
     rc = logerr("y_write","pwrite path=%s",path);
   }
@@ -675,7 +723,7 @@ int y_create(const char *path, mode_t mode, struct fuse_file_info *info) {
     logdebug("y_create","fd=%d path=%s",fd,path);
     info->fh = fd; 
     btnode* node = addLink(fd,&Y_STATE->list); 
-    rc = write_rotor("y_create",path,node,info);
+    rc = calculate_and_write_rotor("y_create",path,node,info,Y_STATE);
   }
   loginfo("y_create","path=%s mode=%d rc=%d",path,mode,rc);
   return rc; 
@@ -684,8 +732,8 @@ int y_create(const char *path, mode_t mode, struct fuse_file_info *info) {
 int y_ftruncate(const char *path, off_t pos, struct fuse_file_info *info) { 
   logdebug("y_ftruncate","path=%s pos=%d",path,pos);
   int rc = 0;
-  // truncate the file skipping the first 256 bytes
-  rc = ftruncate(info->fh, pos+256);
+  // truncate the file skipping the first 260 bytes
+  rc = ftruncate(info->fh, pos+260);
   if (rc<0) rc = logerr("y_ftruncate","ftruncate path=%s pos=%d",path,pos);
   loginfo("y_ftruncate","path=%s pos=%d rc=%d",path,pos,rc);
   return rc; 
@@ -696,7 +744,7 @@ int y_fgetattr(const char *path, struct stat *stat, struct fuse_file_info *info)
   int rc = 0;
   rc = fstat(info->fh,stat);
   if (rc<0) rc = logerr("y_fgetattr","fstat path=%s",path);
-  else { if (stat->st_size>=256) stat->st_size -= 256; /* hide the first 256 bytes */ }
+  else { if (stat->st_size>=260) stat->st_size -= 260; /* hide the first 260 bytes */ }
   loginfo("y_fgetattr","path=%s size=%lu rc=%d",path,stat->st_size,rc);
   return rc; 
 }
