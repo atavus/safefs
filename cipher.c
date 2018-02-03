@@ -64,7 +64,7 @@ void derive_reverse_rotor(unsigned char f_ring[256], unsigned char r_ring[256]) 
 
 void encipher(unsigned char f_ring[256], unsigned char offsets[8], uint64_t pos, unsigned char* data, uint64_t ofs, uint64_t len, int endian, int rounds) {
   uint64_t ptr, rlen;
-  int i,j;
+  int i;
   unsigned char k;
   union {
     unsigned char ix[8];
@@ -74,9 +74,8 @@ void encipher(unsigned char f_ring[256], unsigned char offsets[8], uint64_t pos,
     // big endian
     switch (rounds) {
       case 3:
-        for(j=0;j<2;j++) {
           memcpy(advance.ix,offsets,8);
-          advance.position += pos;
+          advance.position += pos * 0x01030507090b0d0f;
           rlen=len;
           for(ptr=ofs; rlen>0; ptr++) {
             rlen--;
@@ -86,14 +85,12 @@ void encipher(unsigned char f_ring[256], unsigned char offsets[8], uint64_t pos,
               k = f_ring[k];
             }
             data[ptr] = k;
-            advance.position++;
+            advance.position += 0x01030507090b0d0f;
           }
-        }
         break;
       case 5:
-        for(j=0;j<2;j++) {
           memcpy(advance.ix,offsets,8);
-          advance.position += pos;
+          advance.position += pos * 0x01030507090b0d0f;
           rlen=len;
           for(ptr=ofs; rlen>0; ptr++) {
             rlen--;
@@ -103,14 +100,12 @@ void encipher(unsigned char f_ring[256], unsigned char offsets[8], uint64_t pos,
               k = f_ring[k];
             }
             data[ptr] = k;
-            advance.position++;
+            advance.position += 0x01030507090b0d0f;
           }
-        }
         break;
       case 8:
-        for(j=0;j<2;j++) {
           memcpy(advance.ix,offsets,8);
-          advance.position += pos;
+          advance.position += pos * 0x01030507090b0d0f;
           rlen=len;
           for(ptr=ofs; rlen>0; ptr++) {
             rlen--;
@@ -120,18 +115,16 @@ void encipher(unsigned char f_ring[256], unsigned char offsets[8], uint64_t pos,
               k = f_ring[k];
             }
             data[ptr] = k;
-            advance.position++;
+            advance.position += 0x01030507090b0d0f;
           }
-        }
         break;
     }
   } else {
     // little endian
     switch (rounds) {
       case 3:
-        for(j=0;j<2;j++) {
           memcpy(advance.ix,offsets,8);
-          advance.position += pos;
+          advance.position += pos * 0x01030507090b0d0f;
           rlen=len;
           for(ptr=ofs; rlen>0; ptr++) {
             rlen--;
@@ -141,14 +134,12 @@ void encipher(unsigned char f_ring[256], unsigned char offsets[8], uint64_t pos,
               k = f_ring[k];
             }
             data[ptr] = k;
-            advance.position++;
+            advance.position += 0x01030507090b0d0f;
           }
-        }
         break;
       case 5:
-        for(j=0;j<2;j++) {
           memcpy(advance.ix,offsets,8);
-          advance.position += pos;
+          advance.position += pos * 0x01030507090b0d0f;
           rlen=len;
           for(ptr=ofs; rlen>0; ptr++) {
             rlen--;
@@ -158,14 +149,12 @@ void encipher(unsigned char f_ring[256], unsigned char offsets[8], uint64_t pos,
               k = f_ring[k];
             }
             data[ptr] = k;
-            advance.position++;
+            advance.position += 0x01030507090b0d0f;
           }
-        }
         break;
       case 8:
-        for(j=0;j<2;j++) {
           memcpy(advance.ix,offsets,8);
-          advance.position += pos;
+          advance.position += pos * 0x01030507090b0d0f;
           rlen=len;
           for(ptr=ofs; rlen>0; ptr++) {
             rlen--;
@@ -175,9 +164,8 @@ void encipher(unsigned char f_ring[256], unsigned char offsets[8], uint64_t pos,
               k = f_ring[k];
             }
             data[ptr] = k;
-            advance.position++;
+            advance.position += 0x01030507090b0d0f;
           }
-        }
         break;
     }
   }
@@ -185,7 +173,7 @@ void encipher(unsigned char f_ring[256], unsigned char offsets[8], uint64_t pos,
 
 void decipher(unsigned char r_ring[256], unsigned char offsets[8], uint64_t pos, unsigned char* data, uint64_t ofs, uint64_t len, int endian, int rounds) {
   uint64_t ptr, rlen;
-  int i,j;
+  int i;
   unsigned char k;
   union {
     unsigned char ix[8];
@@ -195,9 +183,8 @@ void decipher(unsigned char r_ring[256], unsigned char offsets[8], uint64_t pos,
     // big endian
     switch (rounds) {
       case 3:
-        for(j=0;j<2;j++) {
           memcpy(advance.ix,offsets,8);
-          advance.position += pos;
+          advance.position += pos * 0x01030507090b0d0f;
           rlen=len;
           for(ptr=ofs; rlen>0; ptr++) {
             rlen--;
@@ -207,14 +194,12 @@ void decipher(unsigned char r_ring[256], unsigned char offsets[8], uint64_t pos,
               k -= advance.ix[i];
             }
             data[ptr] = k;
-            advance.position++;
+            advance.position += 0x01030507090b0d0f;
           }
-        }
         break;
       case 5:
-        for(j=0;j<2;j++) {
           memcpy(advance.ix,offsets,8);
-          advance.position += pos;
+          advance.position += pos * 0x01030507090b0d0f;
           rlen=len;
           for(ptr=ofs; rlen>0; ptr++) {
             rlen--;
@@ -224,14 +209,12 @@ void decipher(unsigned char r_ring[256], unsigned char offsets[8], uint64_t pos,
               k -= advance.ix[i];
             }
             data[ptr] = k;
-            advance.position++;
+            advance.position += 0x01030507090b0d0f;
           }
-        }
         break;
       case 8:
-        for(j=0;j<2;j++) {
           memcpy(advance.ix,offsets,8);
-          advance.position += pos;
+          advance.position += pos * 0x01030507090b0d0f;
           rlen=len;
           for(ptr=ofs; rlen>0; ptr++) {
             rlen--;
@@ -241,18 +224,16 @@ void decipher(unsigned char r_ring[256], unsigned char offsets[8], uint64_t pos,
               k -= advance.ix[i];
             }
             data[ptr] = k;
-            advance.position++;
+            advance.position += 0x01030507090b0d0f;
           }
-        }
         break;
     }
   } else {
     // little endian
     switch (rounds) {
       case 3:
-        for(j=0;j<2;j++) {
           memcpy(advance.ix,offsets,8);
-          advance.position += pos;
+          advance.position += pos * 0x01030507090b0d0f;
           rlen=len;
           for(ptr=ofs; rlen>0; ptr++) {
             rlen--;
@@ -262,14 +243,12 @@ void decipher(unsigned char r_ring[256], unsigned char offsets[8], uint64_t pos,
               k -= advance.ix[i];
             }
             data[ptr] = k;
-            advance.position++;
+            advance.position += 0x01030507090b0d0f;
           }
-        }
         break;
       case 5:
-        for(j=0;j<2;j++) {
           memcpy(advance.ix,offsets,8);
-          advance.position += pos;
+          advance.position += pos * 0x01030507090b0d0f;
           rlen=len;
           for(ptr=ofs; rlen>0; ptr++) {
             rlen--;
@@ -279,14 +258,12 @@ void decipher(unsigned char r_ring[256], unsigned char offsets[8], uint64_t pos,
               k -= advance.ix[i];
             }
             data[ptr] = k;
-            advance.position++;
+            advance.position += 0x01030507090b0d0f;
           }
-        }
         break;
       case 8:
-        for(j=0;j<2;j++) {
           memcpy(advance.ix,offsets,8);
-          advance.position += pos;
+          advance.position += pos * 0x01030507090b0d0f;
           rlen=len;
           for(ptr=ofs; rlen>0; ptr++) {
             rlen--;
@@ -296,9 +273,8 @@ void decipher(unsigned char r_ring[256], unsigned char offsets[8], uint64_t pos,
               k -= advance.ix[i];
             }
             data[ptr] = k;
-            advance.position++;
+            advance.position += 0x01030507090b0d0f;
           }
-        }
         break;
     }
   }
